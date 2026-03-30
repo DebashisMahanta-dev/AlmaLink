@@ -173,13 +173,13 @@ const Landing = () => {
             <div className="col-md-3">
               <h6 className="fw-bold mb-3">Privacy</h6>
               <p className="small" style={{ color: "#ccc" }}>
-                <a href="#" style={{ color: "#ccc", textDecoration: "none" }}>Privacy Policy</a>
+                <Link to="/about" style={{ color: "#ccc", textDecoration: "none" }}>Privacy Policy</Link>
               </p>
             </div>
             <div className="col-md-3">
               <h6 className="fw-bold mb-3">Terms</h6>
               <p className="small" style={{ color: "#ccc" }}>
-                <a href="#" style={{ color: "#ccc", textDecoration: "none" }}>Terms of Service</a>
+                <Link to="/about" style={{ color: "#ccc", textDecoration: "none" }}>Terms of Service</Link>
               </p>
             </div>
           </div>

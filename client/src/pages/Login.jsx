@@ -192,7 +192,7 @@ const Login = () => {
 
         {/* Sign Up Link */}
         <p className="text-center mt-4 small">
-          Don't have <a href="/register" className="text-decoration-none fw-bold">a account?</a>
+          Don't have an account? <a href="/register" className="text-decoration-none fw-bold">Sign up here!</a>
         </p>
       </div>
     </div>

@@ -2,17 +2,21 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { Search, MapPin, Briefcase, GraduationCap, Mail, Building, UserPlus, CheckCircle } from "lucide-react";
 
 const AlumniNetwork = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [alumni, setAlumni] = useState([]);
+  const [skillOptions, setSkillOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connectionStatuses, setConnectionStatuses] = useState({}); // Track connection status
   const [filters, setFilters] = useState({
     name: "",
     year: "",
     branch: "",
+    skill: "",
     location: "",
     company: ""
   });
@@ -20,7 +24,18 @@ const AlumniNetwork = () => {
 
   useEffect(() => {
     loadAlumni();
+    loadSkillOptions();
   }, []);
+
+  const loadSkillOptions = async () => {
+    try {
+      const res = await api.get("/alumni/skills");
+      setSkillOptions(res.data.skills || []);
+    } catch (err) {
+      console.error("Failed to load skill options", err);
+      setSkillOptions([]);
+    }
+  };
 
   // Auto-filter when any filter changes (with debounce)
   useEffect(() => {
@@ -46,6 +61,7 @@ const AlumniNetwork = () => {
       if (filters.name) params.name = filters.name;
       if (filters.year) params.year = filters.year;
       if (filters.branch) params.branch = filters.branch;
+      if (filters.skill) params.skill = filters.skill;
       if (filters.location) params.location = filters.location;
       if (filters.company) params.company = filters.company;
 
@@ -73,7 +89,7 @@ const AlumniNetwork = () => {
   };
 
   const handleClearFilters = () => {
-    setFilters({ name: "", year: "", branch: "", location: "", company: "" });
+    setFilters({ name: "", year: "", branch: "", skill: "", location: "", company: "" });
     setTimeout(() => loadAlumni(), 100);
   };
 
@@ -87,12 +103,11 @@ const AlumniNetwork = () => {
         ...connectionStatuses,
         [alumId]: "sent"
       });
-      // Optionally show success message
-      alert("Connection request sent!");
+      toast.success("Connection request sent!");
     } catch (err) {
       // Check if already connected or request pending
       const message = err?.response?.data?.message || "Failed to send connection request";
-      alert(message);
+      toast.error(message);
     }
   };
 
@@ -149,6 +164,20 @@ const AlumniNetwork = () => {
                   value={filters.branch}
                   onChange={handleFilterChange}
                 />
+              </div>
+              <div className="col-md-4">
+                <label className="form-label small fw-semibold">Skill</label>
+                <select
+                  className="form-select"
+                  name="skill"
+                  value={filters.skill}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">All Skills</option>
+                  {skillOptions.map((skill) => (
+                    <option key={skill} value={skill}>{skill}</option>
+                  ))}
+                </select>
               </div>
               <div className="col-md-4">
                 <label className="form-label small fw-semibold">Location</label>
@@ -255,6 +284,16 @@ const AlumniNetwork = () => {
                     <div className="d-flex align-items-center mb-2">
                       <MapPin size={16} className="me-2 text-muted" />
                       <small>{alum.alumniProfile.location}</small>
+                    </div>
+                  )}
+
+                  {Array.isArray(alum.skills) && alum.skills.length > 0 && (
+                    <div className="mb-3">
+                      {alum.skills.slice(0, 4).map((skill) => (
+                        <span key={`${alum._id}-${skill}`} className="badge bg-light text-dark border me-1 mb-1">
+                          {skill}
+                        </span>
+                      ))}
                     </div>
                   )}
 

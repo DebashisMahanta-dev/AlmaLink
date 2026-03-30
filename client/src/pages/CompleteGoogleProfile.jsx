@@ -9,6 +9,12 @@ const CompleteGoogleProfile = () => {
   const [graduationYear, setGraduationYear] = useState("");
   const [country, setCountry] = useState("");
   const [branch, setBranch] = useState("");
+  const [currentYear, setCurrentYear] = useState("");
+  const [college, setCollege] = useState("Government College of Engineering");
+  const [photoUrl, setPhotoUrl] = useState("");
+  const [skillsText, setSkillsText] = useState("");
+  const [projectsText, setProjectsText] = useState("");
+  const [achievementsText, setAchievementsText] = useState("");
   const [employmentStatus, setEmploymentStatus] = useState("");
   const [company, setCompany] = useState("");
   const [location, setLocation] = useState("");
@@ -41,12 +47,57 @@ const CompleteGoogleProfile = () => {
     setLoading(true);
 
     try {
+      const skills = skillsText
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const projects = projectsText
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const achievements = achievementsText
+        .split(/[\n,]/)
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      if (skills.length === 0) {
+        setError("Please add at least one skill you have acquired");
+        setLoading(false);
+        return;
+      }
+
+      if (role === "student" && projects.length === 0) {
+        setError("Please add at least one project");
+        setLoading(false);
+        return;
+      }
+
+      if (role === "student" && achievements.length === 0) {
+        setError("Please add at least one achievement");
+        setLoading(false);
+        return;
+      }
+
+      if (role === "student" && !currentYear) {
+        setError("Please select your current study year");
+        setLoading(false);
+        return;
+      }
+
       const payload = {
         tempToken,
         role,
         country,
         graduationYear,
-        branch
+        branch,
+        currentYear,
+        college,
+        photoUrl,
+        skills,
+        projects,
+        achievements
       };
 
       if (role === "alumni") {
@@ -176,6 +227,39 @@ const CompleteGoogleProfile = () => {
             />
           </div>
 
+          {role === "student" && (
+            <>
+              <div className="mb-3">
+                <label className="form-label fw-semibold">College</label>
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  value={college}
+                  onChange={(e) => setCollege(e.target.value)}
+                  required
+                  style={{ borderRadius: "6px", padding: "12px 15px" }}
+                />
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label fw-semibold">Current Study Year</label>
+                <select
+                  className="form-select form-select-lg"
+                  value={currentYear}
+                  onChange={(e) => setCurrentYear(e.target.value)}
+                  required
+                  style={{ borderRadius: "6px", padding: "12px 15px" }}
+                >
+                  <option value="">Select year</option>
+                  <option value="1st Year">1st Year</option>
+                  <option value="2nd Year">2nd Year</option>
+                  <option value="3rd Year">3rd Year</option>
+                  <option value="4th Year">4th Year</option>
+                </select>
+              </div>
+            </>
+          )}
+
           {/* Country */}
           <div className="mb-3">
             <label className="form-label fw-semibold">Country</label>
@@ -189,6 +273,66 @@ const CompleteGoogleProfile = () => {
               style={{ borderRadius: "6px", padding: "12px 15px" }}
             />
           </div>
+
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Profile Photo URL (Optional)</label>
+            <input
+              type="url"
+              className="form-control form-control-lg"
+              placeholder="https://example.com/my-photo.jpg"
+              value={photoUrl}
+              onChange={(e) => setPhotoUrl(e.target.value)}
+              style={{ borderRadius: "6px", padding: "12px 15px" }}
+            />
+            <small className="text-muted">Leave blank to use the default avatar.</small>
+          </div>
+
+          {/* Skills */}
+          <div className="mb-3">
+            <label className="form-label fw-semibold">Skills Acquired</label>
+            <textarea
+              className="form-control form-control-lg"
+              placeholder="e.g., JavaScript, React, Problem Solving"
+              value={skillsText}
+              onChange={(e) => setSkillsText(e.target.value)}
+              required
+              rows={3}
+              style={{ borderRadius: "6px", padding: "12px 15px", resize: "vertical" }}
+            />
+            <small className="text-muted">Add skills separated by commas or new lines.</small>
+          </div>
+
+          {role === "student" && (
+            <>
+              <div className="mb-3">
+                <label className="form-label fw-semibold">Projects</label>
+                <textarea
+                  className="form-control form-control-lg"
+                  placeholder="e.g., Alumni Portal, Attendance Predictor"
+                  value={projectsText}
+                  onChange={(e) => setProjectsText(e.target.value)}
+                  required
+                  rows={3}
+                  style={{ borderRadius: "6px", padding: "12px 15px", resize: "vertical" }}
+                />
+                <small className="text-muted">Add projects separated by commas or new lines.</small>
+              </div>
+
+              <div className="mb-3">
+                <label className="form-label fw-semibold">Achievements</label>
+                <textarea
+                  className="form-control form-control-lg"
+                  placeholder="e.g., Hackathon finalist, Scholarship recipient"
+                  value={achievementsText}
+                  onChange={(e) => setAchievementsText(e.target.value)}
+                  required
+                  rows={3}
+                  style={{ borderRadius: "6px", padding: "12px 15px", resize: "vertical" }}
+                />
+                <small className="text-muted">Add achievements separated by commas or new lines.</small>
+              </div>
+            </>
+          )}
 
           {/* Alumni-specific fields */}
           {role === "alumni" && (

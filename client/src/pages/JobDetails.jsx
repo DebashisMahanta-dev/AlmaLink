@@ -2,19 +2,20 @@ import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { ArrowLeft, Building, MapPin, Briefcase, Calendar, Users, AlertCircle, FileText } from "lucide-react";
 
 const JobDetails = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [searchParams] = useSearchParams();
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [showApplyForm, setShowApplyForm] = useState(searchParams.get("action") === "apply");
   const [applyLoading, setApplyLoading] = useState(false);
-  const [resumeFile, setResumeFile] = useState(null);
   const [coverLetter, setCoverLetter] = useState("");
   const [applyError, setApplyError] = useState("");
 
@@ -41,36 +42,11 @@ const JobDetails = () => {
     setApplyError("");
     setApplyLoading(true);
 
-    if (!resumeFile) {
-      setApplyError("Resume is required");
-      setApplyLoading(false);
-      return;
-    }
-
-    if (resumeFile.type !== "application/pdf") {
-      setApplyError("Resume must be a PDF file");
-      setApplyLoading(false);
-      return;
-    }
-
-    if (resumeFile.size > 2 * 1024 * 1024) {
-      setApplyError("Resume must be less than 2MB");
-      setApplyLoading(false);
-      return;
-    }
-
     try {
-      const formData = new FormData();
-      formData.append("resume", resumeFile);
-      formData.append("coverLetter", coverLetter);
+      await api.post(`/jobs/${id}/apply`, { coverLetter });
 
-      const res = await api.post(`/jobs/${id}/apply`, formData, {
-        headers: { "Content-Type": "multipart/form-data" }
-      });
-
-      alert("Application submitted successfully!");
+      toast.success("Application submitted successfully!");
       setShowApplyForm(false);
-      setResumeFile(null);
       setCoverLetter("");
       navigate("/my-applications");
     } catch (err) {
@@ -208,7 +184,7 @@ const JobDetails = () => {
                       <FileText size={48} className="text-primary mb-3 d-block mx-auto" />
                       <h5 className="fw-bold mb-3">Ready to Apply?</h5>
                       <p className="text-muted small mb-3">
-                        Click the button below to submit your application with your resume and cover letter.
+                        Click the button below to submit your application using your profile resume.
                       </p>
                       <button
                         className="btn btn-primary w-100"
@@ -225,20 +201,10 @@ const JobDetails = () => {
                       {applyError && (
                         <div className="alert alert-danger small">{applyError}</div>
                       )}
+                      <div className="alert alert-info small">
+                        Resume will be taken from your profile.
+                      </div>
                       <form onSubmit={handleApplySubmit}>
-                        <div className="mb-3">
-                          <label className="form-label small fw-semibold">Resume (PDF) *</label>
-                          <input
-                            type="file"
-                            className="form-control"
-                            accept=".pdf"
-                            onChange={(e) => setResumeFile(e.target.files?.[0] || null)}
-                            required
-                          />
-                          <small className="text-muted d-block mt-1">
-                            Max 2MB, PDF only
-                          </small>
-                        </div>
                         <div className="mb-3">
                           <label className="form-label small fw-semibold">Cover Letter</label>
                           <textarea

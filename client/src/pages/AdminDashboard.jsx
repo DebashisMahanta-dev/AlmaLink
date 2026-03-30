@@ -1,9 +1,11 @@
 import React, { useEffect, useMemo, useState } from "react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const AdminDashboard = () => {
   const { user } = useAuth();
+  const toast = useToast();
   const [users, setUsers] = useState([]);
   const [pendingAlumni, setPendingAlumni] = useState([]);
   const [auditLogs, setAuditLogs] = useState([]);
@@ -52,7 +54,7 @@ const AdminDashboard = () => {
     setError("");
     try {
       const res = await api.patch(`/admin/users/${targetUser._id}/role`, { role });
-      alert(res.data.message || "Role updated");
+      toast.success(res.data.message || "Role updated");
       await loadData();
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to update role");
@@ -69,7 +71,7 @@ const AdminDashboard = () => {
     setError("");
     try {
       const res = await api.delete(`/admin/users/${targetUser._id}`);
-      alert(res.data.message || "User removed");
+      toast.success(res.data.message || "User removed");
       await loadData();
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to delete user");

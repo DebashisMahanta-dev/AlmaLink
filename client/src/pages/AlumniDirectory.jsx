@@ -2,18 +2,22 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { Search, MapPin, Briefcase, GraduationCap, Mail, Building, UserPlus, CheckCircle } from "lucide-react";
 
 const AlumniDirectory = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("directory"); // "directory" or "network"
   const [alumni, setAlumni] = useState([]);
+  const [skillOptions, setSkillOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [connectionStatuses, setConnectionStatuses] = useState({}); // Track connection status
   const [filters, setFilters] = useState({
     name: "",
     year: "",
     branch: "",
+    skill: "",
     location: "",
     company: ""
   });
@@ -21,7 +25,18 @@ const AlumniDirectory = () => {
 
   useEffect(() => {
     loadAlumni();
+    loadSkillOptions();
   }, []);
+
+  const loadSkillOptions = async () => {
+    try {
+      const res = await api.get("/alumni/skills");
+      setSkillOptions(res.data.skills || []);
+    } catch (err) {
+      console.error("Failed to load skill options", err);
+      setSkillOptions([]);
+    }
+  };
 
   // Auto-filter when any filter changes (with debounce)
   useEffect(() => {
@@ -47,6 +62,7 @@ const AlumniDirectory = () => {
       if (filters.name) params.name = filters.name;
       if (filters.year) params.year = filters.year;
       if (filters.branch) params.branch = filters.branch;
+      if (filters.skill) params.skill = filters.skill;
       if (filters.location) params.location = filters.location;
       if (filters.company) params.company = filters.company;
 
@@ -74,7 +90,7 @@ const AlumniDirectory = () => {
   };
 
   const handleClearFilters = () => {
-    setFilters({ name: "", year: "", branch: "", location: "", company: "" });
+    setFilters({ name: "", year: "", branch: "", skill: "", location: "", company: "" });
     setTimeout(() => loadAlumni(), 100);
   };
 
@@ -88,12 +104,11 @@ const AlumniDirectory = () => {
         ...connectionStatuses,
         [alumId]: "sent"
       });
-      // Optionally show success message
-      alert("Connection request sent!");
+      toast.success("Connection request sent!");
     } catch (err) {
       // Check if already connected or request pending
       const message = err?.response?.data?.message || "Failed to send connection request";
-      alert(message);
+      toast.error(message);
     }
   };
 
@@ -103,7 +118,7 @@ const AlumniDirectory = () => {
         <div className="row mb-4">
           <div className="col-md-8">
             <h2 className="fw-bold mb-3">Government College of Engineering Community</h2>
-            <p className="text-muted">Search and connect with alumni from Government College of Engineering</p>
+            <p className="text-muted">Search and connect with approved users from Government College of Engineering</p>
             
             {/* Tabs for Directory and Network */}
             <div className="mt-3">
@@ -173,6 +188,20 @@ const AlumniDirectory = () => {
                 />
               </div>
               <div className="col-md-4">
+                <label className="form-label small fw-semibold">Skill</label>
+                <select
+                  className="form-select"
+                  name="skill"
+                  value={filters.skill}
+                  onChange={handleFilterChange}
+                >
+                  <option value="">All Skills</option>
+                  {skillOptions.map((skill) => (
+                    <option key={skill} value={skill}>{skill}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="col-md-4">
                 <label className="form-label small fw-semibold">Location</label>
                 <input
                   type="text"
@@ -214,7 +243,7 @@ const AlumniDirectory = () => {
         {/* Results */}
         <div className="mb-3">
           <h5 className="fw-bold">
-            {loading ? "Loading..." : `${alumni.length} Alumni Found`}
+            {loading ? "Loading..." : `${alumni.length} Users Found`}
           </h5>
         </div>
 
@@ -226,7 +255,14 @@ const AlumniDirectory = () => {
           </div>
         ) : (
           <div className="row g-3">
-            {alumni.map((alum) => (
+            {alumni.map((alum) => {
+              const profile = alum.role === "student" ? alum.studentProfile : alum.alumniProfile;
+              const graduationYear = profile?.graduationYear;
+              const branch = profile?.branch;
+              const location = alum.role === "student" ? profile?.country : profile?.location;
+              const company = alum.alumniProfile?.company;
+
+              return (
               <div key={alum._id} className="col-md-6 col-lg-4">
                 <div
                   className="bg-white rounded p-4 shadow-sm h-100"
@@ -254,30 +290,42 @@ const AlumniDirectory = () => {
                     />
                     <div>
                       <h6 className="fw-bold mb-0">{alum.name}</h6>
-                      <small className="text-muted">
-                        Class of {alum.alumniProfile?.graduationYear}
-                      </small>
+                      {graduationYear && (
+                        <small className="text-muted">
+                          Class of {graduationYear}
+                        </small>
+                      )}
                     </div>
                   </div>
 
-                  {alum.alumniProfile?.branch && (
+                  {branch && (
                     <div className="d-flex align-items-center mb-2">
                       <GraduationCap size={16} className="me-2 text-muted" />
-                      <small>{alum.alumniProfile.branch}</small>
+                      <small>{branch}</small>
                     </div>
                   )}
 
-                  {alum.alumniProfile?.company && (
+                  {company && (
                     <div className="d-flex align-items-center mb-2">
                       <Briefcase size={16} className="me-2 text-muted" />
-                      <small className="fw-semibold">{alum.alumniProfile.company}</small>
+                      <small className="fw-semibold">{company}</small>
                     </div>
                   )}
 
-                  {alum.alumniProfile?.location && (
+                  {location && (
                     <div className="d-flex align-items-center mb-2">
                       <MapPin size={16} className="me-2 text-muted" />
-                      <small>{alum.alumniProfile.location}</small>
+                      <small>{location}</small>
+                    </div>
+                  )}
+
+                  {Array.isArray(alum.skills) && alum.skills.length > 0 && (
+                    <div className="mb-3">
+                      {alum.skills.slice(0, 4).map((skill) => (
+                        <span key={`${alum._id}-${skill}`} className="badge bg-light text-dark border me-1 mb-1">
+                          {skill}
+                        </span>
+                      ))}
                     </div>
                   )}
 
@@ -323,13 +371,14 @@ const AlumniDirectory = () => {
                   </div>
                 </div>
               </div>
-            ))}
+              );
+            })}
 
             {alumni.length === 0 && !loading && (
               <div className="col-12">
                 <div className="text-center py-5">
                   <Search size={64} className="text-muted mb-3" />
-                  <h5 className="text-muted">No alumni found</h5>
+                  <h5 className="text-muted">No users found</h5>
                   <p className="text-muted">Try adjusting your search filters</p>
                 </div>
               </div>

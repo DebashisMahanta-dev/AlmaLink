@@ -2,11 +2,13 @@ import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { Briefcase, MapPin, Building, Calendar, Users, AlertCircle, Filter } from "lucide-react";
 
 const Jobs = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -63,7 +65,7 @@ const Jobs = () => {
     if (user?.role === "student") {
       navigate(`/jobs/${jobId}?action=apply`);
     } else {
-      alert("Only students can apply for jobs");
+      toast.warning("Only students can apply for jobs");
     }
   };
 

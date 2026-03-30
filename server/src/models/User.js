@@ -14,7 +14,10 @@ const AlumniProfileSchema = new mongoose.Schema(
 const StudentProfileSchema = new mongoose.Schema(
   {
     graduationYear: String,
-    branch: String
+    branch: String,
+    currentYear: String,
+    college: String,
+    country: String
   },
   { _id: false }
 );
@@ -31,7 +34,12 @@ const UserSchema = new mongoose.Schema(
     verificationOTPExpiry: { type: Date, default: null }, // OTP expires in 10 minutes
     verificationToken: { type: String, default: null }, // Legacy token for backward compatibility
     verificationTokenExpiry: { type: Date, default: null },
+    photoUrl: { type: String, default: "" },
     bio: { type: String, default: "" },
+    onboardingCompleted: { type: Boolean, default: true },
+    skills: { type: [String], default: [] },
+    interests: { type: [String], default: [] },
+    projects: { type: [String], default: [] },
     achievements: { type: [String], default: [] },
     resumeUrl: { type: String, default: "" },
     alumniProfile: AlumniProfileSchema,

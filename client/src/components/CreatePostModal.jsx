@@ -1,9 +1,11 @@
 import React, { useState } from "react";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { X, Image as ImageIcon, Plus, Trash2 } from "lucide-react";
 
 const CreatePostModal = ({ show, onClose, onPostCreated }) => {
   const { user } = useAuth();
+  const toast = useToast();
   const [content, setContent] = useState("");
   const [images, setImages] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -19,7 +21,7 @@ const CreatePostModal = ({ show, onClose, onPostCreated }) => {
         };
         reader.readAsDataURL(file);
       } else {
-        alert("Please select image files only");
+        toast.error("Please select image files only");
       }
     });
   };
@@ -32,7 +34,7 @@ const CreatePostModal = ({ show, onClose, onPostCreated }) => {
     e.preventDefault();
     
     if (!content.trim()) {
-      alert("Please write something to post");
+      toast.warning("Please write something to post");
       return;
     }
 
@@ -45,7 +47,7 @@ const CreatePostModal = ({ show, onClose, onPostCreated }) => {
       onClose();
     } catch (err) {
       console.error("Failed to create post", err);
-      alert("Failed to create post. Please try again.");
+      toast.error("Failed to create post. Please try again.");
     } finally {
       setLoading(false);
     }

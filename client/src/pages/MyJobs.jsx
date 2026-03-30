@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
+import { useToast } from "../context/ToastContext";
 import { Briefcase, Plus, Edit3, Trash2, AlertCircle } from "lucide-react";
 import PostJob from "./PostJob";
 import ShareExperience from "./ShareExperience";
 
 const MyJobs = () => {
   const navigate = useNavigate();
+  const toast = useToast();
   const [activeTab, setActiveTab] = useState("jobs"); // "jobs", "post", "share"
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -37,7 +39,7 @@ const MyJobs = () => {
         await api.delete(`/jobs/${jobId}`);
         setJobs(jobs.filter(job => job._id !== jobId));
       } catch (err) {
-        alert(err.response?.data?.message || "Failed to delete job");
+        toast.error(err.response?.data?.message || "Failed to delete job");
       }
     }
   };

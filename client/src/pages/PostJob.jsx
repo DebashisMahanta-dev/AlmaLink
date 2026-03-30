@@ -2,10 +2,12 @@ import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import api from "../services/api";
+import { useToast } from "../context/ToastContext";
 
 const PostJob = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
+  const toast = useToast();
   const [formData, setFormData] = useState({
     title: "",
     company: "",
@@ -53,9 +55,7 @@ const PostJob = () => {
     }
 
     try {
-      console.log("Submitting job data:", formData);
-      const response = await api.post("/jobs", formData);
-      console.log("Job posted successfully:", response.data);
+      await api.post("/jobs", formData);
       // Reset form
       setFormData({
         title: "",
@@ -66,7 +66,7 @@ const PostJob = () => {
         expiryDate: "",
         roles: ["freshers", "experienced"]
       });
-      alert("Job posted successfully!");
+      toast.success("Job posted successfully!");
       // Navigate back to jobs page after a short delay
       setTimeout(() => navigate("/my-jobs"), 1500);
     } catch (err) {

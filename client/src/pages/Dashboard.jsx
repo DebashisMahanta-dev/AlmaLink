@@ -1,20 +1,60 @@
 import React, { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { Briefcase, Users, Calendar, MessageSquare, Home, Settings, LogOut, ChevronRight, Clock, MapPin, ExternalLink } from "lucide-react";
 import CreatePostModal from "../components/CreatePostModal";
 import PostCard from "../components/PostCard";
 
 const Dashboard = () => {
-  const { user } = useAuth();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+  const toast = useToast();
   const [jobs, setJobs] = useState([]);
   const [posts, setPosts] = useState([]);
+  const [profile, setProfile] = useState(null);
   const [showCreatePost, setShowCreatePost] = useState(false);
+
+  const effectiveUser = profile || user;
+  const defaultAvatar = `https://ui-avatars.com/api/?name=${encodeURIComponent(
+    effectiveUser?.name || "User"
+  )}&background=0D8ABC&color=fff&size=256`;
+  const avatarUrl = effectiveUser?.photoUrl || defaultAvatar;
+  const hasCustomPhoto = Boolean(effectiveUser?.photoUrl) && !effectiveUser.photoUrl.includes("ui-avatars.com");
+  const hasSkills = Array.isArray(effectiveUser?.skills) && effectiveUser.skills.length > 0;
+  const hasInterests = Array.isArray(effectiveUser?.interests) && effectiveUser.interests.length > 0;
+  const hasBio = Boolean(effectiveUser?.bio?.trim());
+  const hasProjects = Array.isArray(effectiveUser?.projects) && effectiveUser.projects.length > 0;
+
+  const profileChecks = [
+    { label: "Profile photo", done: hasCustomPhoto },
+    { label: "Skills", done: hasSkills },
+    { label: "Interests", done: hasInterests },
+    { label: "Bio", done: hasBio },
+    { label: "Projects", done: hasProjects }
+  ];
+
+  const completedCount = profileChecks.filter((item) => item.done).length;
+  const totalChecks = profileChecks.length;
+  const progressPercent = Math.round((completedCount / totalChecks) * 100);
+  const missingItems = profileChecks.filter((item) => !item.done).map((item) => item.label);
+  const showProgressBanner = missingItems.length > 0;
 
   useEffect(() => {
     loadJobs();
     loadPosts();
+    loadProfile();
   }, []);
+
+  const loadProfile = async () => {
+    try {
+      const res = await api.get("/profile/me");
+      setProfile(res.data.user || null);
+    } catch (err) {
+      console.error("Failed to load profile", err);
+    }
+  };
 
   const loadJobs = async () => {
     try {
@@ -68,7 +108,7 @@ const Dashboard = () => {
       setPosts(posts.map(p => p._id === postId ? res.data.post : p));
     } catch (err) {
       console.error("Failed to edit post", err);
-      alert("Failed to edit post");
+      toast.error("Failed to edit post");
       throw err;
     }
   };
@@ -79,8 +119,13 @@ const Dashboard = () => {
       setPosts(posts.filter(p => p._id !== postId));
     } catch (err) {
       console.error("Failed to delete post", err);
-      alert("Failed to delete post");
+      toast.error("Failed to delete post");
     }
+  };
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
   };
 
   return (
@@ -90,47 +135,47 @@ const Dashboard = () => {
         <aside style={{ width: "250px", backgroundColor: "#fff", borderRight: "1px solid #e0e0e0", padding: "20px", position: "sticky", top: 0, height: "calc(100vh - 56px)", overflowY: "auto" }}>
           <div style={{ display: "flex", alignItems: "center", marginBottom: "20px", padding: "15px", backgroundColor: "#f0f4f8", borderRadius: "8px" }}>
             <img 
-              src={`https://i.pravatar.cc/48?u=${user?.email}`}
-              alt={user?.name}
+              src={avatarUrl}
+              alt={effectiveUser?.name}
               className="rounded-circle me-2"
               style={{ width: "40px", height: "40px" }}
             />
             <div>
-              <div className="fw-semibold small">{user?.name}</div>
+              <div className="fw-semibold small">{effectiveUser?.name}</div>
               <small className="text-muted">View Profile</small>
             </div>
           </div>
 
           <div className="list-group list-group-flush">
-            <a href="/profile" className="list-group-item list-group-item-action border-0 py-3">
+            <Link to="/profile" className="list-group-item list-group-item-action border-0 py-3">
               <Users size={18} className="me-2" /> Profile
-            </a>
+            </Link>
             <a href="#posts" className="list-group-item list-group-item-action border-0 py-3">
               <MessageSquare size={18} className="me-2" /> My Posts
             </a>
-            <a href="#mentorship" className="list-group-item list-group-item-action border-0 py-3">
+            <Link to="/alumni" className="list-group-item list-group-item-action border-0 py-3">
               <Briefcase size={18} className="me-2" /> Mentorship
-            </a>
-            <a href="/events" className="list-group-item list-group-item-action border-0 py-3">
+            </Link>
+            <Link to="/events" className="list-group-item list-group-item-action border-0 py-3">
               <Calendar size={18} className="me-2" /> Events
-            </a>
-            <a href="/" className="list-group-item list-group-item-action border-0 py-3">
+            </Link>
+            <Link to="/" className="list-group-item list-group-item-action border-0 py-3">
               <Home size={18} className="me-2" /> Home
-            </a>
-            <a href="/messages" className="list-group-item list-group-item-action border-0 py-3">
+            </Link>
+            <Link to="/messages" className="list-group-item list-group-item-action border-0 py-3">
               <MessageSquare size={18} className="me-2" /> Messages
-            </a>
+            </Link>
           </div>
 
           <hr />
 
           <div className="list-group list-group-flush">
-            <a href="#settings" className="list-group-item list-group-item-action border-0 py-3">
+            <Link to="/profile" className="list-group-item list-group-item-action border-0 py-3">
               <Settings size={18} className="me-2" /> Settings
-            </a>
-            <a href="/logout" className="list-group-item list-group-item-action border-0 py-3 text-danger">
+            </Link>
+            <button onClick={handleLogout} className="list-group-item list-group-item-action border-0 py-3 text-danger" style={{ background: "none", textAlign: "left" }}>
               <LogOut size={18} className="me-2" /> Logout
-            </a>
+            </button>
           </div>
         </aside>
 
@@ -149,12 +194,24 @@ const Dashboard = () => {
               </p>
             </div>
           )}
+
+          {showProgressBanner && (
+            <div className="alert alert-info d-flex justify-content-between align-items-start mb-4" role="alert">
+              <div>
+                <h6 className="alert-heading mb-1">Profile completion: {progressPercent}%</h6>
+                <div className="small">
+                  Missing: {missingItems.join(", ")}
+                </div>
+              </div>
+              <Link to="/profile" className="btn btn-sm btn-primary">Complete Profile</Link>
+            </div>
+          )}
           
           <div className="bg-white rounded-lg p-5 mb-4" style={{ borderBottom: "3px solid #0077b5" }}>
-            <h1 className="fw-bold mb-2" style={{ fontSize: "2rem" }}>Welcome back, {user?.name?.split(" ")[0]}!</h1>
+            <h1 className="fw-bold mb-2" style={{ fontSize: "2rem" }}>Welcome back, {effectiveUser?.name?.split(" ")[0]}!</h1>
             <p className="text-muted mb-4">Unlock opportunities, mentorship, and grow your network.</p>
             <div className="d-flex gap-3">
-              <button className="btn btn-primary px-4 py-2">Find Opportunities</button>
+              <button className="btn btn-primary px-4 py-2" onClick={() => navigate("/jobs")}>Find Opportunities</button>
               <button className="btn btn-outline-primary px-4 py-2" onClick={() => setShowCreatePost(true)}>
                 Share Experience
               </button>
@@ -164,8 +221,8 @@ const Dashboard = () => {
           <div className="bg-white rounded-lg p-4 mb-4" style={{ border: "1px solid #e0e0e0" }}>
             <div className="d-flex gap-3 align-items-center">
               <img 
-                src={`https://i.pravatar.cc/48?u=${user?.email}`}
-                alt={user?.name}
+                src={avatarUrl}
+                alt={effectiveUser?.name}
                 className="rounded-circle"
                 style={{ width: "48px", height: "48px" }}
               />
@@ -180,7 +237,7 @@ const Dashboard = () => {
             </div>
           </div>
 
-          <div>
+          <div id="posts">
             <h5 className="fw-bold mb-3">Alumni Stories & Updates</h5>
             {posts.length > 0 ? (
               posts.map((post) => (
@@ -216,12 +273,14 @@ const Dashboard = () => {
                           <MapPin size={14} /> {job.location}
                         </small>
                       </div>
-                      <button className="btn btn-link text-primary p-0">
+                      <button className="btn btn-link text-primary p-0" onClick={() => navigate(`/jobs/${job._id}`)}>
                         <ExternalLink size={20} />
                       </button>
                     </div>
                     <p className="mb-3 text-muted small">{job.description?.substring(0, 100)}...</p>
-                    <button className="btn btn-outline-primary btn-sm">View</button>
+                    <button className="btn btn-outline-primary btn-sm" onClick={() => navigate(`/jobs/${job._id}`)}>
+                      View
+                    </button>
                   </div>
                 ))
               ) : (
@@ -296,16 +355,16 @@ const Dashboard = () => {
           <div className="row mb-4">
             <div className="col-md-6">
               <div className="d-flex gap-4 flex-wrap">
-                <a href="#about" className="text-decoration-none text-muted small">About</a>
-                <a href="#contact" className="text-decoration-none text-muted small">Contact</a>
-                <a href="#privacy" className="text-decoration-none text-muted small">Privacy</a>
-                <a href="#terms" className="text-decoration-none text-muted small">Terms</a>
+                <Link to="/about" className="text-decoration-none text-muted small">About</Link>
+                <a href="mailto:support@alumnconnect.com" className="text-decoration-none text-muted small">Contact</a>
+                <Link to="/about" className="text-decoration-none text-muted small">Privacy</Link>
+                <Link to="/about" className="text-decoration-none text-muted small">Terms</Link>
               </div>
             </div>
             <div className="col-md-6 text-end">
               <div className="d-flex gap-3 justify-content-end">
-                <a href="#github" className="text-muted">GitHub</a>
-                <a href="#twitter" className="text-muted">Twitter</a>
+                <a href="https://github.com" target="_blank" rel="noreferrer" className="text-muted">GitHub</a>
+                <a href="https://twitter.com" target="_blank" rel="noreferrer" className="text-muted">Twitter</a>
               </div>
             </div>
           </div>

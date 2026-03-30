@@ -3,7 +3,6 @@ import { Job } from "../models/Job.js";
 import { Application } from "../models/Application.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/roles.js";
-import { resumeUpload } from "../middleware/upload.js";
 
 const router = express.Router();
 
@@ -102,20 +101,31 @@ router.post("/", requireAuth, requireRole("alumni"), async (req, res) => {
   }
 });
 
-router.post("/:id/apply", requireAuth, requireRole("student"), resumeUpload.single("resume"), async (req, res) => {
+router.post("/:id/apply", requireAuth, requireRole("student"), async (req, res) => {
   try {
     const job = await Job.findById(req.params.id);
     if (!job) return res.status(404).json({ message: "Not found" });
     if (job.expiryDate && job.expiryDate < new Date()) {
       return res.status(400).json({ message: "This job post has expired" });
     }
-    
-    if (!req.file) {
-      return res.status(400).json({ message: "Resume is required" });
+
+    const resumeUrl = req.user.resumeUrl;
+    if (!resumeUrl) {
+      return res.status(400).json({
+        message: "Resume is required. Please upload your resume in Profile before applying."
+      });
     }
 
-    // Handle both S3 (location) and local storage (filename)
-    const resumeUrl = req.file.location || `/uploads/resumes/${req.file.filename}`;
+    const existingApplication = await Application.findOne({
+      job: job._id,
+      student: req.user._id
+    });
+    if (existingApplication) {
+      return res.status(409).json({
+        message: "You have already applied to this job."
+      });
+    }
+
     const { coverLetter } = req.body;
 
     const application = await Application.create({

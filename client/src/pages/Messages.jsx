@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 import { Search, Send, Trash2, Phone, Video, Users } from "lucide-react";
 import { useLocation } from "react-router-dom";
 import { io } from "socket.io-client";
@@ -21,6 +22,7 @@ const Messages = () => {
   const [connectionsLoading, setConnectionsLoading] = useState(true);
   const [connections, setConnections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const toast = useToast();
 
   useEffect(() => {
     loadConversations();
@@ -275,7 +277,7 @@ const Messages = () => {
       );
     } catch (err) {
       console.error("Failed to send message", err);
-      alert("Failed to send message");
+      toast.error("Failed to send message");
     }
   };
 

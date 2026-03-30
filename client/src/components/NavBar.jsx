@@ -29,6 +29,14 @@ const NavBar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
+  const userAvatar = user?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=0D8ABC&color=fff&size=128`;
+  const hasCustomPhoto = Boolean(user?.photoUrl) && !user.photoUrl.includes("ui-avatars.com");
+  const hasSkills = Array.isArray(user?.skills) && user.skills.length > 0;
+  const hasInterests = Array.isArray(user?.interests) && user.interests.length > 0;
+  const hasBio = Boolean(user?.bio?.trim());
+  const hasProjects = Array.isArray(user?.projects) && user.projects.length > 0;
+  const completionChecks = [hasCustomPhoto, hasSkills, hasInterests, hasBio, hasProjects];
+  const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
 
   const isActive = (path) => location.pathname === path;
 
@@ -214,11 +222,14 @@ const NavBar = () => {
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
                   <img 
-                    src={`https://i.pravatar.cc/32?u=${user.email}`}
+                    src={userAvatar}
                     alt="Profile"
                     className="rounded-circle me-2"
                     style={{ width: "32px", height: "32px" }}
                   />
+                  <span className="badge bg-warning text-dark me-2" title="Profile completion">
+                    {completionPercent}%
+                  </span>
                   <span>Hi, {user.name?.split(' ')[0] || user.name}</span>
                 </button>
                 {profileDropdown && (
@@ -338,11 +349,14 @@ const NavBar = () => {
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
                   <img 
-                    src={`https://i.pravatar.cc/32?u=${user.email}`}
+                    src={userAvatar}
                     alt="Profile"
                     className="rounded-circle me-2"
                     style={{ width: "32px", height: "32px" }}
                   />
+                  <span className="badge bg-warning text-dark me-2" title="Profile completion">
+                    {completionPercent}%
+                  </span>
                   <span>Hi, {user.name?.split(' ')[0] || user.name}</span>
                 </button>
                 {profileDropdown && (
@@ -452,18 +466,21 @@ const NavBar = () => {
                   style={{ background: "none", border: "none", cursor: "pointer" }}
                 >
                   <img 
-                    src={`https://i.pravatar.cc/32?u=${user.email}`}
+                    src={userAvatar}
                     alt="Profile"
                     className="rounded-circle me-2"
                     style={{ width: "32px", height: "32px" }}
                   />
+                  <span className="badge bg-warning text-dark me-2" title="Profile completion">
+                    {completionPercent}%
+                  </span>
                   <span>Hi, {user.name?.split(' ')[0] || user.name}</span>
                 </button>
                 {profileDropdown && (
                   <div className="dropdown-menu show">
                     <Link
                       className="dropdown-item"
-                      to="/admin/profile"
+                      to="/profile"
                       onClick={() => {
                         setProfileDropdown(false);
                         setMobileMenuOpen(false);

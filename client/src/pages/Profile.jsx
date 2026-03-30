@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { MapPin, Briefcase, GraduationCap, Mail, Upload, Edit2 } from "lucide-react";
 import api from "../services/api";
@@ -16,18 +17,23 @@ const Profile = () => {
     bio: "",
     email: "",
     photoUrl: "",
+    skillsText: "",
+    interestsText: "",
+    projectsText: "",
     achievementsText: "",
     resumeUrl: ""
   });
   const [resume, setResume] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState(null);
   const [myJobs, setMyJobs] = useState([]);
+  const [myApplications, setMyApplications] = useState([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
     if (user) {
       loadProfile();
       loadMyJobs();
+      loadMyApplications();
     }
   }, [user]);
 
@@ -36,6 +42,9 @@ const Profile = () => {
       const res = await api.get("/profile/me");
       const me = res.data.user;
       const achievements = Array.isArray(me.achievements) ? me.achievements : [];
+      const skills = Array.isArray(me.skills) ? me.skills : [];
+      const interests = Array.isArray(me.interests) ? me.interests : [];
+      const projects = Array.isArray(me.projects) ? me.projects : [];
 
       setProfileData({
         name: me.name || "",
@@ -47,6 +56,9 @@ const Profile = () => {
         bio: me.bio || "",
         email: me.email || "",
         photoUrl: me.photoUrl || `https://i.pravatar.cc/200?u=${me.email}`,
+        skillsText: skills.join("\n"),
+        interestsText: interests.join("\n"),
+        projectsText: projects.join("\n"),
         achievementsText: achievements.join("\n"),
         resumeUrl: me.resumeUrl || ""
       });
@@ -63,6 +75,18 @@ const Profile = () => {
         setMyJobs(res.data.jobs?.slice(0, 2) || []);
       } catch (err) {
         console.error("Failed to load jobs", err);
+      }
+    }
+  };
+
+  const loadMyApplications = async () => {
+    if (user?.role === "student") {
+      try {
+        const res = await api.get("/jobs/me/applications");
+        setMyApplications(res.data.applications || []);
+      } catch (err) {
+        console.error("Failed to load applications", err);
+        setMyApplications([]);
       }
     }
   };
@@ -89,14 +113,41 @@ const Profile = () => {
 
   const handleSave = async () => {
     try {
+      const skills = profileData.skillsText
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const interests = profileData.interestsText
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
+      const projects = profileData.projectsText
+        .split("\n")
+        .map((item) => item.trim())
+        .filter(Boolean);
+
       const achievements = profileData.achievementsText
         .split("\n")
         .map((item) => item.trim())
         .filter(Boolean);
 
+      if (profilePhoto) {
+        const photoData = new FormData();
+        photoData.append("photo", profilePhoto);
+        const photoRes = await api.post("/profile/me/photo", photoData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        setProfileData((prev) => ({ ...prev, photoUrl: photoRes.data.photoUrl || prev.photoUrl }));
+      }
+
       await api.patch("/profile/me", {
         name: profileData.name,
         bio: profileData.bio,
+        skills,
+        interests,
+        projects,
         achievements,
         graduationYear: String(profileData.graduationYear || ""),
         branch: profileData.title,
@@ -105,10 +156,17 @@ const Profile = () => {
       });
 
       setMessage("Profile updated successfully!");
+      setProfilePhoto(null);
       setEditing(false);
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
-      setMessage("Failed to update profile");
+      const status = err?.response?.status;
+      const apiMessage = err?.response?.data?.message;
+      if (status === 401) {
+        setMessage("Session expired. Please log in again.");
+        return;
+      }
+      setMessage(apiMessage || "Failed to update profile");
     }
   };
 
@@ -351,6 +409,33 @@ const Profile = () => {
                       value={profileData.bio}
                       onChange={handleInputChange}
                     />
+                    <label className="form-label fw-semibold small mt-3">Skills (one per line)</label>
+                    <textarea
+                      name="skillsText"
+                      className="form-control"
+                      rows="4"
+                      placeholder="Example:\nJavaScript\nReact\nNode.js"
+                      value={profileData.skillsText}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-label fw-semibold small mt-3">Interests (one per line)</label>
+                    <textarea
+                      name="interestsText"
+                      className="form-control"
+                      rows="4"
+                      placeholder="Example:\nAI\nWeb Development\nOpen Source"
+                      value={profileData.interestsText}
+                      onChange={handleInputChange}
+                    />
+                    <label className="form-label fw-semibold small mt-3">Projects (one per line)</label>
+                    <textarea
+                      name="projectsText"
+                      className="form-control"
+                      rows="4"
+                      placeholder="Example:\nAlumni Portal\nAttendance Predictor"
+                      value={profileData.projectsText}
+                      onChange={handleInputChange}
+                    />
                     <label className="form-label fw-semibold small">Achievements (one per line)</label>
                     <textarea
                       name="achievementsText"
@@ -364,6 +449,42 @@ const Profile = () => {
                 ) : (
                   <>
                     <p className="small text-muted">{profileData.bio || "No bio added yet."}</p>
+                    <div className="mb-3">
+                      <h6 className="fw-semibold mb-2">Skills</h6>
+                      {profileData.skillsText ? (
+                        <ul className="small mb-0">
+                          {profileData.skillsText.split("\n").filter(Boolean).map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="small text-muted mb-0">No skills listed.</p>
+                      )}
+                    </div>
+                    <div className="mb-3">
+                      <h6 className="fw-semibold mb-2">Interests</h6>
+                      {profileData.interestsText ? (
+                        <ul className="small mb-0">
+                          {profileData.interestsText.split("\n").filter(Boolean).map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="small text-muted mb-0">No interests listed.</p>
+                      )}
+                    </div>
+                    <div className="mb-3">
+                      <h6 className="fw-semibold mb-2">Projects</h6>
+                      {profileData.projectsText ? (
+                        <ul className="small mb-0">
+                          {profileData.projectsText.split("\n").filter(Boolean).map((item, idx) => (
+                            <li key={idx}>{item}</li>
+                          ))}
+                        </ul>
+                      ) : (
+                        <p className="small text-muted mb-0">No projects listed.</p>
+                      )}
+                    </div>
                     <div>
                       <h6 className="fw-semibold mb-2">Achievements</h6>
                       {profileData.achievementsText ? (
@@ -468,9 +589,45 @@ const Profile = () => {
             <div className="col-lg-8">
               <div className="bg-white rounded p-4 shadow-sm" style={{ border: "1px solid #e0e0e0" }}>
                 <h5 className="fw-bold mb-4">My Applications</h5>
-                <p className="text-muted text-center py-4">
-                  Your job applications will appear here
-                </p>
+
+                {myApplications.length === 0 ? (
+                  <p className="text-muted text-center py-4">
+                    You have not applied to any jobs yet.
+                  </p>
+                ) : (
+                  myApplications.slice(0, 5).map((application) => (
+                    <div key={application._id} className="border rounded p-3 mb-3">
+                      <div className="d-flex justify-content-between align-items-start">
+                        <div>
+                          <h6 className="fw-bold mb-1">{application.job?.title || "Job"}</h6>
+                          <div className="text-muted small mb-1">{application.job?.company || "Unknown company"}</div>
+                          {application.job?.location && (
+                            <div className="text-muted small">{application.job.location}</div>
+                          )}
+                        </div>
+                        <span
+                          className={`badge ${
+                            application.status === "accepted"
+                              ? "bg-success"
+                              : application.status === "rejected"
+                                ? "bg-danger"
+                                : "bg-warning text-dark"
+                          }`}
+                        >
+                          {(application.status || "pending").toUpperCase()}
+                        </span>
+                      </div>
+
+                      {application.job?._id && (
+                        <div className="mt-2">
+                          <Link to={`/jobs/${application.job._id}`} className="btn btn-sm btn-outline-primary">
+                            View Job
+                          </Link>
+                        </div>
+                      )}
+                    </div>
+                  ))
+                )}
               </div>
             </div>
           )}

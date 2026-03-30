@@ -8,6 +8,7 @@ import fs from "fs";
 const useS3 = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY && process.env.AWS_S3_BUCKET;
 
 let resumeUpload;
+let profilePhotoUpload;
 
 if (useS3) {
   // AWS S3 Configuration
@@ -48,13 +49,47 @@ if (useS3) {
     fileFilter,
     limits: { fileSize: 2 * 1024 * 1024 }
   });
+
+  const photoStorage = multerS3({
+    s3: s3Client,
+    bucket: process.env.AWS_S3_BUCKET,
+    metadata: (req, file, cb) => {
+      cb(null, {
+        fieldName: file.fieldname,
+        originalName: file.originalname,
+        uploadedBy: req.user?._id || "anonymous"
+      });
+    },
+    key: (req, file, cb) => {
+      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      const fileName = `profile-photos/${unique}${path.extname(file.originalname)}`;
+      cb(null, fileName);
+    }
+  });
+
+  const photoFilter = (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image files are allowed"));
+    }
+    cb(null, true);
+  };
+
+  profilePhotoUpload = multer({
+    storage: photoStorage,
+    fileFilter: photoFilter,
+    limits: { fileSize: 2 * 1024 * 1024 }
+  });
 } else {
   // Fallback to Local Storage (for development)
   console.warn("AWS S3 credentials not found. Using local file storage for resume uploads.");
   
   const uploadsDir = path.resolve("uploads", "resumes");
+  const photoDir = path.resolve("uploads", "profiles");
   if (!fs.existsSync(uploadsDir)) {
     fs.mkdirSync(uploadsDir, { recursive: true });
+  }
+  if (!fs.existsSync(photoDir)) {
+    fs.mkdirSync(photoDir, { recursive: true });
   }
 
   const localStorage = multer.diskStorage({
@@ -79,6 +114,29 @@ if (useS3) {
     fileFilter,
     limits: { fileSize: 2 * 1024 * 1024 }
   });
+
+  const localPhotoStorage = multer.diskStorage({
+    destination: (req, file, cb) => {
+      cb(null, photoDir);
+    },
+    filename: (req, file, cb) => {
+      const unique = `${Date.now()}-${Math.round(Math.random() * 1e9)}`;
+      cb(null, `${unique}${path.extname(file.originalname)}`);
+    }
+  });
+
+  const photoFilter = (req, file, cb) => {
+    if (!file.mimetype.startsWith("image/")) {
+      return cb(new Error("Only image files are allowed"));
+    }
+    cb(null, true);
+  };
+
+  profilePhotoUpload = multer({
+    storage: localPhotoStorage,
+    fileFilter: photoFilter,
+    limits: { fileSize: 2 * 1024 * 1024 }
+  });
 }
 
-export { resumeUpload };
+export { resumeUpload, profilePhotoUpload };
