@@ -1,6 +1,6 @@
 import express from "express";
 import { requireAuth } from "../middleware/auth.js";
-import { profilePhotoUpload, resumeUpload } from "../middleware/upload.js";
+import { profilePhotoUpload, resumeUpload, bannerUpload } from "../middleware/upload.js";
 import { User } from "../models/User.js";
 
 const router = express.Router();
@@ -23,6 +23,7 @@ router.patch("/me", requireAuth, async (req, res) => {
     const {
       name,
       photoUrl,
+      bannerUrl,
       bio,
       skills,
       interests,
@@ -54,6 +55,10 @@ router.patch("/me", requireAuth, async (req, res) => {
 
     if (typeof photoUrl === "string") {
       user.photoUrl = photoUrl.trim();
+    }
+
+    if (typeof bannerUrl === "string") {
+      user.bannerUrl = bannerUrl.trim();
     }
 
     if (typeof onboardingCompleted === "boolean") {
@@ -138,6 +143,31 @@ router.post("/me/photo", requireAuth, profilePhotoUpload.single("photo"), async 
   } catch (err) {
     console.error("Error uploading profile photo:", err);
     return res.status(500).json({ message: "Failed to upload profile photo" });
+  }
+});
+
+router.post("/me/banner", requireAuth, bannerUpload.single("banner"), async (req, res) => {
+  try {
+    if (!req.file) {
+      return res.status(400).json({ message: "Banner image is required" });
+    }
+
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    const bannerUrl =
+      req.file.location ||
+      `${req.protocol}://${req.get("host")}/uploads/profiles/${req.file.filename}`;
+
+    user.bannerUrl = bannerUrl;
+    await user.save();
+
+    return res.json({ message: "Banner uploaded successfully", bannerUrl });
+  } catch (err) {
+    console.error("Error uploading banner image:", err);
+    return res.status(500).json({ message: "Failed to upload banner image" });
   }
 });
 

@@ -19,6 +19,10 @@ const JobDetails = () => {
   const [coverLetter, setCoverLetter] = useState("");
   const [applyError, setApplyError] = useState("");
 
+  const postedByAvatar =
+    job?.postedBy?.photoUrl ||
+    `https://ui-avatars.com/api/?name=${encodeURIComponent(job?.postedBy?.name || "User")}&background=0D8ABC&color=fff&size=128`;
+
   useEffect(() => {
     loadJobDetails();
   }, [id]);
@@ -158,10 +162,10 @@ const JobDetails = () => {
                     <h6 className="fw-bold mb-3">Posted By</h6>
                     <div className="d-flex align-items-center">
                       <img
-                        src={`https://i.pravatar.cc/40?u=${job.postedBy.email}`}
+                        src={postedByAvatar}
                         alt={job.postedBy.name}
                         className="rounded-circle me-3"
-                        style={{ width: "40px", height: "40px" }}
+                        style={{ width: "40px", height: "40px", objectFit: "cover" }}
                       />
                       <div>
                         <p className="mb-0 fw-semibold">{job.postedBy.name}</p>

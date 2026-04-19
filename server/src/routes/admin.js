@@ -3,6 +3,12 @@ import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/roles.js";
 import { User } from "../models/User.js";
 import { Job } from "../models/Job.js";
+import { Event } from "../models/Event.js";
+import Post from "../models/Post.js";
+import { Application } from "../models/Application.js";
+import { Connection } from "../models/Connection.js";
+import { Conversation } from "../models/Conversation.js";
+import { Message } from "../models/Message.js";
 import { AdminAuditLog } from "../models/AdminAuditLog.js";
 
 const router = express.Router();
@@ -56,6 +62,53 @@ const ensureNotRemovingLastAdmin = async (targetUser, requestedRole) => {
   return { ok: true };
 };
 
+const createDayKeys = (days) => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  return Array.from({ length: days }, (_, index) => {
+    const date = new Date(today);
+    date.setDate(today.getDate() - (days - index - 1));
+    return {
+      key: date.toISOString().slice(0, 10),
+      label: date.toLocaleDateString("en-US", { month: "short", day: "numeric" })
+    };
+  });
+};
+
+const buildDailySeries = async (model, days, match = {}, dateField = "createdAt") => {
+  const dayKeys = createDayKeys(days);
+  const start = new Date(dayKeys[0].key);
+  const raw = await model.aggregate([
+    {
+      $match: {
+        ...match,
+        [dateField]: { $gte: start }
+      }
+    },
+    {
+      $group: {
+        _id: {
+          $dateToString: {
+            format: "%Y-%m-%d",
+            date: `$${dateField}`
+          }
+        },
+        count: { $sum: 1 }
+      }
+    },
+    {
+      $sort: { _id: 1 }
+    }
+  ]);
+
+  const counts = new Map(raw.map((entry) => [entry._id, entry.count]));
+  return dayKeys.map((day) => ({
+    ...day,
+    count: counts.get(day.key) || 0
+  }));
+};
+
 const writeAuditLog = async ({ action, actor, target = {}, details = "" }) => {
   try {
     await AdminAuditLog.create({
@@ -77,6 +130,206 @@ const writeAuditLog = async ({ action, actor, target = {}, details = "" }) => {
 router.get("/pending-alumni", requireAuth, requireRole("admin"), async (req, res) => {
   const alumni = await User.find({ role: "alumni", approved: false }).select("name email alumniProfile");
   return res.json({ alumni });
+});
+
+router.get("/analytics", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const now = new Date();
+    const inFourteenDays = new Date(now);
+    inFourteenDays.setDate(inFourteenDays.getDate() + 14);
+    const thirtyDaysAgo = new Date(now);
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 29);
+
+    const [
+      totalUsers,
+      totalAdmins,
+      totalAlumni,
+      totalStudents,
+      approvedAlumni,
+      pendingAlumni,
+      recentUsers30d,
+      totalJobs,
+      activeJobs,
+      expiringSoonJobs,
+      recentJobs30d,
+      totalEvents,
+      activeEvents,
+      upcomingEvents,
+      recentEvents30d,
+      totalApplications,
+      submittedApplications,
+      reviewedApplications,
+      acceptedApplications,
+      rejectedApplications,
+      applicationsTrend30d,
+      totalPosts,
+      postsTrend30d,
+      totalMessages,
+      unreadMessages,
+      totalConversations,
+      totalConnections,
+      acceptedConnections,
+      postsEngagement,
+      usersTrend30d,
+      recentAuditLogs
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({ role: "admin" }),
+      User.countDocuments({ role: "alumni" }),
+      User.countDocuments({ role: "student" }),
+      User.countDocuments({ role: "alumni", approved: true }),
+      User.countDocuments({ role: "alumni", approved: false }),
+      User.countDocuments({ createdAt: { $gte: thirtyDaysAgo } }),
+      Job.countDocuments(),
+      Job.countDocuments({
+        $or: [
+          { expiryDate: { $exists: false } },
+          { expiryDate: null },
+          { expiryDate: { $gte: now } }
+        ]
+      }),
+      Job.countDocuments({
+        expiryDate: { $gte: now, $lte: inFourteenDays }
+      }),
+      buildDailySeries(Job, 30),
+      Event.countDocuments(),
+      Event.countDocuments({ active: true }),
+      Event.countDocuments({ startsAt: { $gte: now } }),
+      buildDailySeries(Event, 30),
+      Application.countDocuments(),
+      Application.countDocuments({ status: "submitted" }),
+      Application.countDocuments({ status: "reviewed" }),
+      Application.countDocuments({ status: "accepted" }),
+      Application.countDocuments({ status: "rejected" }),
+      buildDailySeries(Application, 30),
+      Post.countDocuments(),
+      buildDailySeries(Post, 30),
+      Message.countDocuments(),
+      Message.countDocuments({ isRead: false }),
+      Conversation.countDocuments(),
+      Connection.countDocuments(),
+      Connection.countDocuments({ status: "accepted" }),
+      Post.aggregate([
+        {
+          $project: {
+            likesCount: { $size: { $ifNull: ["$likes", []] } },
+            commentsCount: { $size: { $ifNull: ["$comments", []] } }
+          }
+        },
+        {
+          $group: {
+            _id: null,
+            totalLikes: { $sum: "$likesCount" },
+            totalComments: { $sum: "$commentsCount" }
+          }
+        }
+      ]),
+      buildDailySeries(User, 30),
+      AdminAuditLog.find()
+        .sort({ createdAt: -1 })
+        .limit(8)
+        .select("action actor target details createdAt")
+    ]);
+
+    const [messageTrend, approvalTrend, connectionTrend] = await Promise.all([
+      buildDailySeries(Message, 30),
+      buildDailySeries(AdminAuditLog, 30, { action: "approve_alumni" }),
+      buildDailySeries(Connection, 30)
+    ]);
+
+    const [signups7d, jobs7d, applications7d, messages7d, posts7d, approvals7d, connections7d] =
+      await Promise.all([
+        buildDailySeries(User, 7),
+        buildDailySeries(Job, 7),
+        buildDailySeries(Application, 7),
+        buildDailySeries(Message, 7),
+        buildDailySeries(Post, 7),
+        buildDailySeries(AdminAuditLog, 7, { action: "approve_alumni" }),
+        buildDailySeries(Connection, 7)
+      ]);
+
+    const [recentPostAuthors, recentMessageSenders, recentApplicants, recentConnectionSenders, recentConnectionReceivers] =
+      await Promise.all([
+        Post.distinct("author", { createdAt: { $gte: thirtyDaysAgo } }),
+        Message.distinct("sender", { createdAt: { $gte: thirtyDaysAgo } }),
+        Application.distinct("student", { createdAt: { $gte: thirtyDaysAgo } }),
+        Connection.distinct("sender", { createdAt: { $gte: thirtyDaysAgo } }),
+        Connection.distinct("receiver", { createdAt: { $gte: thirtyDaysAgo } })
+      ]);
+
+    const recentUserIds = new Set(
+      [
+        ...recentPostAuthors,
+        ...recentMessageSenders,
+        ...recentApplicants,
+        ...recentConnectionSenders,
+        ...recentConnectionReceivers
+      ].map((id) => id.toString())
+    );
+
+    const engagementTotals = postsEngagement[0] || { totalLikes: 0, totalComments: 0 };
+    const approvalRate = totalAlumni > 0 ? Math.round((approvedAlumni / totalAlumni) * 100) : 0;
+    const activeJobsRate = totalJobs > 0 ? Math.round((activeJobs / totalJobs) * 100) : 0;
+    const acceptedConnectionRate = totalConnections > 0 ? Math.round((acceptedConnections / totalConnections) * 100) : 0;
+
+    return res.json({
+      overview: {
+        totalUsers,
+        totalAdmins,
+        totalAlumni,
+        totalStudents,
+        approvedAlumni,
+        pendingAlumni,
+        recentUsers30d,
+        approvalRate,
+        totalJobs,
+        activeJobs,
+        activeJobsRate,
+        expiringSoonJobs,
+        totalEvents,
+        activeEvents,
+        upcomingEvents,
+        totalApplications,
+        submittedApplications,
+        reviewedApplications,
+        acceptedApplications,
+        rejectedApplications,
+        totalPosts,
+        totalMessages,
+        unreadMessages,
+        totalConversations,
+        totalConnections,
+        acceptedConnections,
+        acceptedConnectionRate,
+        totalLikes: engagementTotals.totalLikes || 0,
+        totalComments: engagementTotals.totalComments || 0,
+        activeUsers30d: recentUserIds.size
+      },
+      trends: {
+        users: usersTrend30d,
+        signups7d,
+        jobs7d,
+        applications7d,
+        messages7d,
+        posts7d,
+        approvals7d,
+        connections7d,
+        approvals30d: approvalTrend,
+        jobs30d: recentJobs30d,
+        events30d: recentEvents30d,
+        applications30d: applicationsTrend30d,
+        posts30d: postsTrend30d,
+        messages30d: messageTrend,
+        connections30d: connectionTrend
+      },
+      recent: {
+        auditLogs: recentAuditLogs
+      }
+    });
+  } catch (err) {
+    console.error("Admin analytics fetch error:", err);
+    return res.status(500).json({ message: "Failed to load admin analytics" });
+  }
 });
 
 router.patch("/approve/:id", requireAuth, requireRole("admin"), async (req, res) => {
@@ -113,6 +366,159 @@ router.delete("/jobs/:id", requireAuth, requireRole("admin"), async (req, res) =
   });
 
   return res.json({ success: true });
+});
+
+router.get("/jobs", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const jobs = await Job.find()
+      .populate("postedBy", "name email photoUrl alumniProfile")
+      .sort({ createdAt: -1 });
+
+    return res.json({ jobs });
+  } catch (err) {
+    console.error("Admin jobs fetch error:", err);
+    return res.status(500).json({ message: "Failed to fetch job posts" });
+  }
+});
+
+router.get("/events", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const events = await Event.find().sort({ startsAt: 1, createdAt: -1 });
+    return res.json({ events });
+  } catch (err) {
+    console.error("Admin events fetch error:", err);
+    return res.status(500).json({ message: "Failed to fetch events" });
+  }
+});
+
+router.post("/events", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const {
+      title,
+      startsAt,
+      location = "",
+      format = "Online",
+      attendingCount = 0,
+      rsvpLabel = "",
+      imageUrl = "",
+      active = true
+    } = req.body;
+
+    if (!title?.trim() || !startsAt) {
+      return res.status(400).json({ message: "Title and start time are required" });
+    }
+
+    const parsedStartsAt = new Date(startsAt);
+    if (Number.isNaN(parsedStartsAt.getTime())) {
+      return res.status(400).json({ message: "Invalid event date/time" });
+    }
+
+    const event = await Event.create({
+      title: title.trim(),
+      startsAt: parsedStartsAt,
+      location: location.trim(),
+      format: format.trim() || "Online",
+      attendingCount: Number(attendingCount) || 0,
+      rsvpLabel: rsvpLabel.trim(),
+      imageUrl: imageUrl.trim(),
+      active: Boolean(active)
+    });
+
+    await writeAuditLog({
+      action: "create_event",
+      actor: req.user,
+      target: {
+        id: event._id,
+        name: event.title
+      },
+      details: `Created event "${event.title}"`
+    });
+
+    return res.status(201).json({ event });
+  } catch (err) {
+    console.error("Admin events create error:", err);
+    return res.status(500).json({ message: "Failed to create event" });
+  }
+});
+
+router.patch("/events/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const event = await Event.findById(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    const {
+      title,
+      startsAt,
+      location,
+      format,
+      attendingCount,
+      rsvpLabel,
+      imageUrl,
+      active
+    } = req.body;
+
+    if (title !== undefined) event.title = title.trim();
+    if (startsAt) {
+      const parsedStartsAt = new Date(startsAt);
+      if (Number.isNaN(parsedStartsAt.getTime())) {
+        return res.status(400).json({ message: "Invalid event date/time" });
+      }
+      event.startsAt = parsedStartsAt;
+    }
+    if (location !== undefined) event.location = location.trim();
+    if (format !== undefined) event.format = format.trim();
+    if (attendingCount !== undefined) event.attendingCount = Number(attendingCount) || 0;
+    if (rsvpLabel !== undefined) event.rsvpLabel = rsvpLabel.trim();
+    if (imageUrl !== undefined) event.imageUrl = imageUrl.trim();
+    if (active !== undefined) event.active = Boolean(active);
+
+    if (!event.title?.trim() || !event.startsAt) {
+      return res.status(400).json({ message: "Title and start time are required" });
+    }
+
+    await event.save();
+
+    await writeAuditLog({
+      action: "update_event",
+      actor: req.user,
+      target: {
+        id: event._id,
+        name: event.title
+      },
+      details: `Updated event "${event.title}"`
+    });
+
+    return res.json({ event });
+  } catch (err) {
+    console.error("Admin events update error:", err);
+    return res.status(500).json({ message: "Failed to update event" });
+  }
+});
+
+router.delete("/events/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  try {
+    const event = await Event.findByIdAndDelete(req.params.id);
+    if (!event) {
+      return res.status(404).json({ message: "Not found" });
+    }
+
+    await writeAuditLog({
+      action: "delete_event",
+      actor: req.user,
+      target: {
+        id: event._id,
+        name: event.title
+      },
+      details: `Deleted event "${event.title}"`
+    });
+
+    return res.json({ success: true });
+  } catch (err) {
+    console.error("Admin events delete error:", err);
+    return res.status(500).json({ message: "Failed to delete event" });
+  }
 });
 
 // Admin Management

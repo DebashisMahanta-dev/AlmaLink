@@ -47,7 +47,12 @@ const CreatePostModal = ({ show, onClose, onPostCreated }) => {
       onClose();
     } catch (err) {
       console.error("Failed to create post", err);
-      toast.error("Failed to create post. Please try again.");
+      const apiMessage =
+        err?.response?.data?.message ||
+        err?.response?.data?.error ||
+        err?.message ||
+        "Failed to create post. Please try again.";
+      toast.error(apiMessage);
     } finally {
       setLoading(false);
     }

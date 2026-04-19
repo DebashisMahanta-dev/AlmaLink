@@ -13,19 +13,19 @@ const run = async () => {
   const existing = await User.findOne({ email: adminEmail.toLowerCase() });
   if (existing) {
     console.log("Admin already exists");
-    process.exit(0);
+  } else {
+    const passwordHash = await bcrypt.hash(adminPassword, 10);
+    await User.create({
+      name: "Admin",
+      email: adminEmail.toLowerCase(),
+      passwordHash,
+      role: "admin",
+      approved: true,
+      emailVerified: true
+    });
+    console.log("Admin created");
   }
 
-  const passwordHash = await bcrypt.hash(adminPassword, 10);
-  await User.create({
-    name: "Admin",
-    email: adminEmail.toLowerCase(),
-    passwordHash,
-    role: "admin",
-    approved: true,
-    emailVerified: true
-  });
-  console.log("Admin created");
   process.exit(0);
 };
 

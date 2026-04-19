@@ -9,6 +9,7 @@ const useS3 = process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY
 
 let resumeUpload;
 let profilePhotoUpload;
+let bannerUpload;
 
 if (useS3) {
   // AWS S3 Configuration
@@ -79,6 +80,12 @@ if (useS3) {
     fileFilter: photoFilter,
     limits: { fileSize: 2 * 1024 * 1024 }
   });
+
+  bannerUpload = multer({
+    storage: photoStorage,
+    fileFilter: photoFilter,
+    limits: { fileSize: 5 * 1024 * 1024 }
+  });
 } else {
   // Fallback to Local Storage (for development)
   console.warn("AWS S3 credentials not found. Using local file storage for resume uploads.");
@@ -137,6 +144,12 @@ if (useS3) {
     fileFilter: photoFilter,
     limits: { fileSize: 2 * 1024 * 1024 }
   });
+
+  bannerUpload = multer({
+    storage: localPhotoStorage,
+    fileFilter: photoFilter,
+    limits: { fileSize: 5 * 1024 * 1024 }
+  });
 }
 
-export { resumeUpload, profilePhotoUpload };
+export { resumeUpload, profilePhotoUpload, bannerUpload };

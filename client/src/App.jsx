@@ -3,9 +3,11 @@ import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./context/AuthContext";
 import NavBar from "./components/NavBar";
 import Landing from "./pages/Landing";
+import AuthEntry from "./pages/AuthEntry";
 import About from "./pages/About";
-import Login from "./pages/Login";
-import Register from "./pages/Register";
+import PrivacyPolicy from "./pages/PrivacyPolicy";
+import TermsOfService from "./pages/TermsOfService";
+import CookiePolicy from "./pages/CookiePolicy";
 import Dashboard from "./pages/Dashboard";
 import AlumniDirectory from "./pages/AlumniDirectory";
 import AlumniNetwork from "./pages/AlumniNetwork";
@@ -20,6 +22,7 @@ import ShareExperience from "./pages/ShareExperience";
 import AdminDashboard from "./pages/AdminDashboard";
 import ApproveAlumni from "./pages/ApproveAlumni";
 import ManageJobs from "./pages/ManageJobs";
+import ManageEvents from "./pages/ManageEvents";
 import Announcements from "./pages/Announcements";
 import GitHubCallback from "./pages/GitHubCallback";
 import GoogleCallback from "./pages/GoogleCallback";
@@ -55,8 +58,11 @@ const App = () => {
         <Route path="/" element={user ? (needsOnboarding ? <Navigate to="/onboarding" /> : <Dashboard />) : <Landing />} />
         <Route path="/dashboard" element={protectRoute(<Dashboard />)} />
         <Route path="/about" element={<About />} />
-        <Route path="/login" element={user ? <Navigate to={needsOnboarding ? "/onboarding" : "/dashboard"} /> : <Login />} />
-        <Route path="/register" element={user ? <Navigate to={needsOnboarding ? "/onboarding" : "/dashboard"} /> : <Register />} />
+        <Route path="/privacy-policy" element={<PrivacyPolicy />} />
+        <Route path="/terms-of-service" element={<TermsOfService />} />
+        <Route path="/cookie-policy" element={<CookiePolicy />} />
+        <Route path="/login" element={user ? <Navigate to={needsOnboarding ? "/onboarding" : "/dashboard"} /> : <AuthEntry mode="login" />} />
+        <Route path="/register" element={user ? <Navigate to={needsOnboarding ? "/onboarding" : "/dashboard"} /> : <AuthEntry mode="register" />} />
         <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/login" />} />
         <Route path="/auth/github/callback" element={<GitHubCallback />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
@@ -82,8 +88,10 @@ const App = () => {
 
         {/* Admin Routes */}
         <Route path="/admin" element={user?.role === "admin" ? protectRoute(<AdminDashboard />) : <Navigate to="/" />} />
+        <Route path="/admin/analytics" element={user?.role === "admin" ? protectRoute(<AdminDashboard />) : <Navigate to="/" />} />
         <Route path="/approve-alumni" element={user?.role === "admin" ? protectRoute(<ApproveAlumni />) : <Navigate to="/" />} />
         <Route path="/manage-jobs" element={user?.role === "admin" ? protectRoute(<ManageJobs />) : <Navigate to="/" />} />
+        <Route path="/manage-events" element={user?.role === "admin" ? protectRoute(<ManageEvents />) : <Navigate to="/" />} />
         <Route path="/announcements" element={user?.role === "admin" ? protectRoute(<Announcements />) : <Navigate to="/" />} />
 
         {/* Catch-all */}

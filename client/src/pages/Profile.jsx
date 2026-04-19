@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { MapPin, Briefcase, GraduationCap, Mail, Upload, Edit2 } from "lucide-react";
+import { MapPin, Briefcase, GraduationCap, Mail, Upload, Edit2, ImagePlus, X } from "lucide-react";
 import api from "../services/api";
 
 const Profile = () => {
@@ -17,6 +17,7 @@ const Profile = () => {
     bio: "",
     email: "",
     photoUrl: "",
+    bannerUrl: "",
     skillsText: "",
     interestsText: "",
     projectsText: "",
@@ -25,8 +26,10 @@ const Profile = () => {
   });
   const [resume, setResume] = useState(null);
   const [profilePhoto, setProfilePhoto] = useState(null);
+  const [bannerPhoto, setBannerPhoto] = useState(null);
   const [myJobs, setMyJobs] = useState([]);
   const [myApplications, setMyApplications] = useState([]);
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [message, setMessage] = useState("");
 
   useEffect(() => {
@@ -34,6 +37,7 @@ const Profile = () => {
       loadProfile();
       loadMyJobs();
       loadMyApplications();
+      loadRecommendedJobs();
     }
   }, [user]);
 
@@ -56,6 +60,7 @@ const Profile = () => {
         bio: me.bio || "",
         email: me.email || "",
         photoUrl: me.photoUrl || `https://i.pravatar.cc/200?u=${me.email}`,
+        bannerUrl: me.bannerUrl || "",
         skillsText: skills.join("\n"),
         interestsText: interests.join("\n"),
         projectsText: projects.join("\n"),
@@ -103,6 +108,29 @@ const Profile = () => {
     }
   };
 
+  const loadRecommendedJobs = async () => {
+    if (user?.role !== "student") {
+      setRecommendedJobs([]);
+      return;
+    }
+
+    try {
+      const res = await api.get("/jobs/recommended");
+      setRecommendedJobs(res.data.recommendedJobs || []);
+    } catch (err) {
+      console.error("Failed to load recommended jobs", err);
+      setRecommendedJobs([]);
+    }
+  };
+
+  const handleBannerChange = (e) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setBannerPhoto(file);
+      setProfileData((prev) => ({ ...prev, bannerUrl: URL.createObjectURL(file) }));
+    }
+  };
+
   const handleResumeChange = (e) => {
     const file = e.target.files?.[0];
     if (file) {
@@ -142,6 +170,19 @@ const Profile = () => {
         setProfileData((prev) => ({ ...prev, photoUrl: photoRes.data.photoUrl || prev.photoUrl }));
       }
 
+      if (bannerPhoto) {
+        const bannerData = new FormData();
+        bannerData.append("banner", bannerPhoto);
+        const bannerRes = await api.post("/profile/me/banner", bannerData, {
+          headers: { "Content-Type": "multipart/form-data" }
+        });
+        setProfileData((prev) => ({ ...prev, bannerUrl: bannerRes.data.bannerUrl || prev.bannerUrl }));
+      } else if (profileData.bannerUrl && !profileData.bannerUrl.startsWith("blob:")) {
+        await api.patch("/profile/me", {
+          bannerUrl: profileData.bannerUrl
+        });
+      }
+
       await api.patch("/profile/me", {
         name: profileData.name,
         bio: profileData.bio,
@@ -157,6 +198,7 @@ const Profile = () => {
 
       setMessage("Profile updated successfully!");
       setProfilePhoto(null);
+      setBannerPhoto(null);
       setEditing(false);
       setTimeout(() => setMessage(""), 3000);
     } catch (err) {
@@ -190,21 +232,68 @@ const Profile = () => {
     }
   };
 
+  const handleCancelEditing = () => {
+    setEditing(false);
+    setProfilePhoto(null);
+    setBannerPhoto(null);
+    setResume(null);
+    loadProfile();
+  };
+
   return (
     <div style={{ backgroundColor: "#f5f5f5", minHeight: "100vh", paddingBottom: "40px" }}>
       {/* Hero Banner */}
-      <div 
-        style={{ 
-          height: "200px", 
-          background: "linear-gradient(135deg, #667eea 0%, #764ba2 100%)",
-          position: "relative"
+      <div
+        style={{
+          height: "240px",
+          position: "relative",
+          overflow: "hidden",
+          background: profileData.bannerUrl
+            ? `linear-gradient(180deg, rgba(14, 26, 58, 0.22) 0%, rgba(14, 26, 58, 0.52) 100%), url(${profileData.bannerUrl}) center/cover no-repeat`
+            : "linear-gradient(135deg, #667eea 0%, #764ba2 100%)"
         }}
       >
-        <div className="container" style={{ position: "relative", height: "100%" }}>
-          <h2 className="text-white fw-bold" style={{ paddingTop: "60px" }}>
-            Bridge Your Future.<br />Connect with Alumni
-          </h2>
-          <p className="text-white">Unlock career opportunities, mentorship,<br />and a powerful network</p>
+        <div
+          className="container d-flex flex-column justify-content-between h-100"
+          style={{ position: "relative", zIndex: 2, paddingTop: "44px", paddingBottom: "20px" }}
+        >
+          <div className="d-flex justify-content-between align-items-start flex-wrap gap-3">
+            <div>
+              <h2 className="text-white fw-bold mb-2">
+                Bridge Your Future.<br />Connect with Alumni
+              </h2>
+              <p className="text-white mb-0">
+                Unlock career opportunities, mentorship,<br />and a powerful network
+              </p>
+            </div>
+            {editing && (
+              <div className="d-flex gap-2">
+                <label className="btn btn-light btn-sm fw-semibold mb-0" style={{ cursor: "pointer" }}>
+                  <ImagePlus size={16} className="me-1" />
+                  Upload Banner
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={handleBannerChange}
+                    hidden
+                  />
+                </label>
+                {bannerPhoto && (
+                  <button
+                    type="button"
+                    className="btn btn-outline-light btn-sm fw-semibold"
+                    onClick={() => {
+                      setBannerPhoto(null);
+                      setProfileData((prev) => ({ ...prev, bannerUrl: prev.bannerUrl.startsWith("blob:") ? "" : prev.bannerUrl }));
+                    }}
+                  >
+                    <X size={16} className="me-1" />
+                    Clear
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
@@ -335,9 +424,23 @@ const Profile = () => {
                           <small>{profileData.company || "Not specified"}</small>
                         </div>
                       </>
-                    )}
-                  </div>
+                  )}
                 </div>
+                {editing && (
+                  <div className="mt-3">
+                    <label className="form-label fw-semibold small">Banner URL (optional)</label>
+                    <input
+                      type="url"
+                      name="bannerUrl"
+                      className="form-control form-control-sm"
+                      placeholder="Paste a LinkedIn-style banner image URL"
+                      value={profileData.bannerUrl}
+                      onChange={handleInputChange}
+                    />
+                    <small className="text-muted d-block mt-1">Or upload a banner from the cover area above.</small>
+                  </div>
+                )}
+              </div>
 
                 <div className="d-flex align-items-start mb-3">
                   <GraduationCap size={18} className="me-2 mt-1 text-muted" />
@@ -538,7 +641,7 @@ const Profile = () => {
                   <button className="btn btn-primary flex-grow-1" onClick={handleSave}>
                     Save Changes
                   </button>
-                  <button className="btn btn-outline-secondary" onClick={() => setEditing(false)}>
+                  <button className="btn btn-outline-secondary" onClick={handleCancelEditing}>
                     Cancel
                   </button>
                 </div>
@@ -587,6 +690,58 @@ const Profile = () => {
           {/* Right Column - Applications (Student) */}
           {user?.role === "student" && (
             <div className="col-lg-8">
+              <div className="bg-white rounded p-4 shadow-sm mb-4" style={{ border: "1px solid #e0e0e0" }}>
+                <div className="d-flex align-items-center justify-content-between mb-4 gap-3">
+                  <div>
+                    <h5 className="fw-bold mb-1">Jobs matched to your skills</h5>
+                    <p className="text-muted small mb-0">
+                      We’re using your profile skills to surface relevant opportunities.
+                    </p>
+                  </div>
+                  <Link to="/jobs" className="btn btn-sm btn-outline-primary rounded-pill">
+                    Browse all
+                  </Link>
+                </div>
+
+                {recommendedJobs.length === 0 ? (
+                  <p className="text-muted text-center py-4 mb-0">
+                    Add more skills in your profile to unlock stronger job matches.
+                  </p>
+                ) : (
+                  <div className="row g-3">
+                    {recommendedJobs.slice(0, 3).map((job) => (
+                      <div key={job._id} className="col-md-4">
+                        <div className="border rounded-4 p-3 h-100">
+                          <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <div>
+                              <h6 className="fw-bold mb-1">{job.title}</h6>
+                              <div className="text-muted small">{job.company}</div>
+                            </div>
+                            <span className="badge bg-success">{job.matchScore || 0}%</span>
+                          </div>
+                          {job.matchedSkills?.length > 0 && (
+                            <div className="d-flex flex-wrap gap-1 mb-3">
+                              {job.matchedSkills.slice(0, 3).map((skill) => (
+                                <span key={skill} className="badge text-bg-light border text-secondary">
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p className="text-muted small mb-3">
+                            {job.description?.substring(0, 100)}
+                            {job.description?.length > 100 ? "..." : ""}
+                          </p>
+                          <Link to={`/jobs/${job._id}`} className="btn btn-sm btn-outline-primary rounded-pill">
+                            View job
+                          </Link>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               <div className="bg-white rounded p-4 shadow-sm" style={{ border: "1px solid #e0e0e0" }}>
                 <h5 className="fw-bold mb-4">My Applications</h5>
 

@@ -1,27 +1,20 @@
 import React, { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import "./Navbar.css";
+import { FaGraduationCap, FaArrowRightToBracket, FaUserPlus, FaBars, FaXmark } from "react-icons/fa6";
 import {
   Home,
-  Info,
-  LogIn,
-  UserPlus,
-  LogOut,
   Users,
   Briefcase,
   Calendar,
-  MessageSquare,
-  User,
-  Plus,
-  FileText,
-  CheckSquare,
-  Trash2,
   Bell,
-  Search,
-  Menu,
-  X,
-  Edit3,
-  UserCheck
+  FileText,
+  User,
+  LogOut,
+  Settings,
+  ChevronDown,
+  CheckSquare
 } from "lucide-react";
 
 const NavBar = () => {
@@ -29,6 +22,7 @@ const NavBar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
+
   const userAvatar = user?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=0D8ABC&color=fff&size=128`;
   const hasCustomPhoto = Boolean(user?.photoUrl) && !user.photoUrl.includes("ui-avatars.com");
   const hasSkills = Array.isArray(user?.skills) && user.skills.length > 0;
@@ -37,479 +31,259 @@ const NavBar = () => {
   const hasProjects = Array.isArray(user?.projects) && user.projects.length > 0;
   const completionChecks = [hasCustomPhoto, hasSkills, hasInterests, hasBio, hasProjects];
   const completionPercent = Math.round((completionChecks.filter(Boolean).length / completionChecks.length) * 100);
+  const firstName = user?.name?.split(" ")[0] || user?.name || "User";
+  const initials = firstName
+    .split(" ")
+    .map((part) => part[0])
+    .join("")
+    .slice(0, 2)
+    .toUpperCase();
 
   const isActive = (path) => location.pathname === path;
 
-  const toggleMobileMenu = () => setMobileMenuOpen(!mobileMenuOpen);
-  const toggleProfileDropdown = () => setProfileDropdown(!profileDropdown);
-
-  const handleLogout = () => {
-    logout();
+  const closeMenus = () => {
     setMobileMenuOpen(false);
     setProfileDropdown(false);
   };
 
-  // PUBLIC NAVBAR (Not logged in)
+  const handleLogout = () => {
+    logout();
+    closeMenus();
+  };
+
+  const publicNavLinks = [{ icon: <Users />, label: "About", href: "/about" }];
+
+  const renderModernNavbar = ({ variant, notificationCount, links, dropdownItems, homeHref = "/" }) => (
+    <nav className={`modern-navbar modern-navbar--${variant}`}>
+      <div className="modern-navbar__inner">
+        <Link className="modern-navbar__brand" to={homeHref}>
+          <span className="modern-navbar__brand-icon">
+            <FaGraduationCap />
+          </span>
+          <span className="modern-navbar__brand-text">GCE Connect</span>
+        </Link>
+
+        <button
+          className="modern-navbar__toggle"
+          type="button"
+          onClick={() => setMobileMenuOpen((prev) => !prev)}
+          aria-expanded={mobileMenuOpen}
+          aria-label="Toggle menu"
+        >
+          {mobileMenuOpen ? <FaXmark /> : <FaBars />}
+        </button>
+
+        <div className={`modern-navbar__collapse ${mobileMenuOpen ? "is-open" : ""}`}>
+          <ul className="modern-navbar__links">
+            {links.map((link) => (
+              <li key={link.label} className="modern-navbar__item">
+                <Link
+                  to={link.href}
+                  className={`modern-navbar__link ${isActive(link.href) ? "is-active" : ""}`}
+                  onClick={closeMenus}
+                >
+                  <span className="modern-navbar__link-icon">{link.icon}</span>
+                  <span>{link.label}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+
+          <div className="modern-navbar__actions">
+            <button type="button" className="modern-navbar__notify" aria-label="Notifications">
+              <Bell size={15} />
+              <span className="modern-navbar__notify-count">{notificationCount}</span>
+            </button>
+
+            <div className="modern-navbar__profile-wrap">
+              <button
+                className="modern-navbar__profile"
+                type="button"
+                onClick={() => setProfileDropdown((prev) => !prev)}
+                aria-expanded={profileDropdown}
+                aria-label="Open profile menu"
+              >
+                {hasCustomPhoto ? (
+                  <img src={userAvatar} alt="Profile" className="modern-navbar__avatar" />
+                ) : (
+                  <span className="modern-navbar__avatar modern-navbar__avatar--initials">{initials}</span>
+                )}
+                <span className="modern-navbar__completion">{completionPercent}%</span>
+                <span className="modern-navbar__greeting">Hi, {firstName}</span>
+                <ChevronDown size={14} className="modern-navbar__chevron" />
+              </button>
+
+              {profileDropdown && (
+                <div className="modern-navbar__dropdown">
+                  {dropdownItems.map((item) =>
+                    item.type === "link" ? (
+                      <Link
+                        key={item.label}
+                        to={item.href}
+                        className="modern-navbar__dropdown-item"
+                        onClick={closeMenus}
+                      >
+                        <item.icon size={16} />
+                        <span>{item.label}</span>
+                      </Link>
+                    ) : (
+                      <button
+                        key={item.label}
+                        type="button"
+                        className={`modern-navbar__dropdown-item ${item.variant === "danger" ? "is-danger" : ""}`}
+                        onClick={() => {
+                          closeMenus();
+                          item.onClick();
+                        }}
+                      >
+                        <item.icon size={16} />
+                        <span>{item.label}</span>
+                      </button>
+                    )
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </nav>
+  );
+
   if (!user) {
     return (
-      <nav className="navbar navbar-expand-lg navbar-dark bg-primary navbar-sticky">
-        <div className="container-fluid">
-          <Link className="navbar-brand fw-bold" to="/">
-            <span style={{ fontSize: "1.5rem", marginRight: "0.5rem" }}>🎓</span>
-            GCE Connect
+      <nav className="navbar">
+        <Link to="/" className="navbar-brand">
+          <span className="brand-icon">
+            <FaGraduationCap />
+          </span>
+          <span className="brand-name">
+            GCE <span className="brand-accent">Connect</span>
+          </span>
+        </Link>
+
+        <ul className="nav-links">
+          {publicNavLinks.map((link) => (
+            <li key={link.label}>
+              <Link
+                to={link.href}
+                className={`nav-link ${isActive(link.href) ? "nav-link--active" : ""}`}
+                onClick={closeMenus}
+              >
+                <span className="nav-link-icon">{link.icon}</span>
+                {link.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+
+        <div className="nav-auth">
+          <Link to="/login" className="btn-signin">
+            <FaArrowRightToBracket className="btn-icon" />
+            Sign In
           </Link>
-
-          <button
-            className="navbar-toggler"
-            type="button"
-            onClick={toggleMobileMenu}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-
-          <div className={`collapse navbar-collapse ${mobileMenuOpen ? "show" : ""}`}>
-            <ul className="navbar-nav ms-auto gap-1">
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/") ? "active" : ""}`}
-                  to="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Home size={18} className="me-1" />
-                  Home
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/about") ? "active" : ""}`}
-                  to="/about"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Info size={18} className="me-1" />
-                  About
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className="btn btn-outline-light btn-sm ms-2"
-                  to="/login"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <LogIn size={16} className="me-1" />
-                  Sign In
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className="btn btn-light btn-sm"
-                  to="/register"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <UserPlus size={16} className="me-1" />
-                  Join
-                </Link>
-              </li>
-            </ul>
-          </div>
+          <Link to="/register" className="btn-join">
+            <FaUserPlus className="btn-icon" />
+            Join
+          </Link>
         </div>
+
+        <button className="nav-toggle" onClick={() => setMobileMenuOpen((prev) => !prev)} aria-label="Toggle menu">
+          {mobileMenuOpen ? <FaXmark /> : <FaBars />}
+        </button>
+
+        {mobileMenuOpen && (
+          <div className="mobile-menu">
+            <ul className="mobile-links">
+              {publicNavLinks.map((link) => (
+                <li key={link.label}>
+                  <Link
+                    to={link.href}
+                    className={`mobile-link ${isActive(link.href) ? "mobile-link--active" : ""}`}
+                    onClick={closeMenus}
+                  >
+                    <span className="nav-link-icon">{link.icon}</span>
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+            <div className="mobile-auth">
+              <Link to="/login" className="btn-signin btn-signin--mobile" onClick={closeMenus}>
+                <FaArrowRightToBracket className="btn-icon" /> Sign In
+              </Link>
+              <Link to="/register" className="btn-join btn-join--mobile" onClick={closeMenus}>
+                <FaUserPlus className="btn-icon" /> Join
+              </Link>
+            </div>
+          </div>
+        )}
       </nav>
     );
   }
 
-  // STUDENT NAVBAR
   if (user.role === "student") {
-    return (
-      <nav className="navbar navbar-expand-lg navbar-dark bg-primary navbar-sticky">
-        <div className="container-fluid">
-          <Link className="navbar-brand fw-bold" to="/">
-            <span style={{ fontSize: "1.5rem", marginRight: "0.5rem" }}>🎓</span>
-            GCE Connect
-          </Link>
-
-          <button
-            className="navbar-toggler"
-            type="button"
-            onClick={toggleMobileMenu}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-
-          <div className={`collapse navbar-collapse ${mobileMenuOpen ? "show" : ""}`}>
-            {/* Left Navigation */}
-            <ul className="navbar-nav me-auto gap-1">
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/") ? "active" : ""}`}
-                  to="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Home size={18} className="me-1" />
-                  Home
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/alumni") ? "active" : ""}`}
-                  to="/alumni"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Users size={18} className="me-1" />
-                  Alumni Directory
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/jobs") ? "active" : ""}`}
-                  to="/jobs"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Briefcase size={18} className="me-1" />
-                  Jobs
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/events") ? "active" : ""}`}
-                  to="/events"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Calendar size={18} className="me-1" />
-                  Events
-                </Link>
-              </li>
-            </ul>
-
-            {/* Right Navigation */}
-            <ul className="navbar-nav gap-1 align-items-lg-center">
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/connections") ? "active" : ""}`}
-                  to="/connections"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <UserCheck size={18} className="me-1" />
-                  Connections
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/messages") ? "active" : ""}`}
-                  to="/messages"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <MessageSquare size={18} className="me-1" />
-                  <span className="badge bg-warning text-dark ms-1">3</span>
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/my-applications") ? "active" : ""}`}
-                  to="/my-applications"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <FileText size={18} className="me-1" />
-                  Applications
-                </Link>
-              </li>
-
-              {/* Profile Dropdown */}
-              <li className="nav-item dropdown">
-                <button
-                  className="nav-link dropdown-toggle d-flex align-items-center"
-                  onClick={toggleProfileDropdown}
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <img 
-                    src={userAvatar}
-                    alt="Profile"
-                    className="rounded-circle me-2"
-                    style={{ width: "32px", height: "32px" }}
-                  />
-                  <span className="badge bg-warning text-dark me-2" title="Profile completion">
-                    {completionPercent}%
-                  </span>
-                  <span>Hi, {user.name?.split(' ')[0] || user.name}</span>
-                </button>
-                {profileDropdown && (
-                  <div className="dropdown-menu show">
-                    <Link
-                      className="dropdown-item"
-                      to="/profile"
-                      onClick={() => {
-                        setProfileDropdown(false);
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      <User size={16} className="me-2" />
-                      My Profile
-                    </Link>
-                    <hr className="dropdown-divider" />
-                    <button
-                      className="dropdown-item"
-                      onClick={handleLogout}
-                      style={{ background: "none", border: "none", width: "100%", textAlign: "left" }}
-                    >
-                      <LogOut size={16} className="me-2" />
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-    );
+    return renderModernNavbar({
+      variant: "student",
+      notificationCount: 3,
+      links: [
+        { icon: <Home size={16} />, label: "Home", href: "/" },
+        { icon: <Users size={16} />, label: "Alumni", href: "/alumni" },
+        { icon: <Briefcase size={16} />, label: "Jobs", href: "/jobs" },
+        { icon: <Calendar size={16} />, label: "Events", href: "/events" },
+        { icon: <FileText size={16} />, label: "Applications", href: "/my-applications" },
+        { icon: <Users size={16} />, label: "Mentorship", href: "/connections" }
+      ],
+      dropdownItems: [
+        { type: "link", label: "Profile", href: "/profile", icon: User },
+        { type: "link", label: "My Applications", href: "/my-applications", icon: FileText },
+        { type: "link", label: "Settings", href: "/profile", icon: Settings },
+        { type: "action", label: "Logout", icon: LogOut, variant: "danger", onClick: handleLogout }
+      ]
+    });
   }
 
-  // ALUMNI NAVBAR
   if (user.role === "alumni") {
-    return (
-      <nav className="navbar navbar-expand-lg navbar-dark bg-success navbar-sticky">
-        <div className="container-fluid">
-          <Link className="navbar-brand fw-bold" to="/">
-            <span style={{ fontSize: "1.5rem", marginRight: "0.5rem" }}>🎓</span>
-            GCE Connect
-          </Link>
-
-          <button
-            className="navbar-toggler"
-            type="button"
-            onClick={toggleMobileMenu}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-
-          <div className={`collapse navbar-collapse ${mobileMenuOpen ? "show" : ""}`}>
-            {/* Left Navigation */}
-            <ul className="navbar-nav me-auto gap-1">
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/") ? "active" : ""}`}
-                  to="/"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Home size={18} className="me-1" />
-                  Home
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/alumni") ? "active" : ""}`}
-                  to="/alumni"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Users size={18} className="me-1" />
-                  Alumni Directory
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/my-jobs") ? "active" : ""}`}
-                  to="/my-jobs"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Briefcase size={18} className="me-1" />
-                  My Job Posts
-                </Link>
-              </li>
-            </ul>
-
-            {/* Right Navigation */}
-            <ul className="navbar-nav gap-1 align-items-lg-center">
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/connections") ? "active" : ""}`}
-                  to="/connections"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <UserCheck size={18} className="me-1" />
-                  Connections
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/messages") ? "active" : ""}`}
-                  to="/messages"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <MessageSquare size={18} className="me-1" />
-                  <span className="badge bg-warning text-dark ms-1">2</span>
-                </Link>
-              </li>
-
-              {/* Profile Dropdown */}
-              <li className="nav-item dropdown">
-                <button
-                  className="nav-link dropdown-toggle d-flex align-items-center"
-                  onClick={toggleProfileDropdown}
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <img 
-                    src={userAvatar}
-                    alt="Profile"
-                    className="rounded-circle me-2"
-                    style={{ width: "32px", height: "32px" }}
-                  />
-                  <span className="badge bg-warning text-dark me-2" title="Profile completion">
-                    {completionPercent}%
-                  </span>
-                  <span>Hi, {user.name?.split(' ')[0] || user.name}</span>
-                </button>
-                {profileDropdown && (
-                  <div className="dropdown-menu show">
-                    <Link
-                      className="dropdown-item"
-                      to="/profile"
-                      onClick={() => {
-                        setProfileDropdown(false);
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      <User size={16} className="me-2" />
-                      My Profile
-                    </Link>
-                    <hr className="dropdown-divider" />
-                    <button
-                      className="dropdown-item"
-                      onClick={handleLogout}
-                      style={{ background: "none", border: "none", width: "100%", textAlign: "left" }}
-                    >
-                      <LogOut size={16} className="me-2" />
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-    );
+    return renderModernNavbar({
+      variant: "alumni",
+      notificationCount: 2,
+      links: [
+        { icon: <Home size={16} />, label: "Home", href: "/" },
+        { icon: <Users size={16} />, label: "Alumni", href: "/alumni" },
+        { icon: <Briefcase size={16} />, label: "Jobs", href: "/my-jobs" },
+        { icon: <Calendar size={16} />, label: "Events", href: "/events" },
+        { icon: <Briefcase size={16} />, label: "Mentorship", href: "/alumni-network" }
+      ],
+      dropdownItems: [
+        { type: "link", label: "Profile", href: "/profile", icon: User },
+        { type: "link", label: "My Job Posts", href: "/my-jobs", icon: FileText },
+        { type: "link", label: "Settings", href: "/profile", icon: Settings },
+        { type: "action", label: "Logout", icon: LogOut, variant: "danger", onClick: handleLogout }
+      ]
+    });
   }
 
-  // ADMIN NAVBAR
   if (user.role === "admin") {
-    return (
-      <nav className="navbar navbar-expand-lg navbar-dark bg-danger navbar-sticky">
-        <div className="container-fluid">
-          <Link className="navbar-brand fw-bold" to="/">
-            <span style={{ fontSize: "1.5rem", marginRight: "0.5rem" }}>🎓</span>
-            GCE Connect
-          </Link>
-
-          <button
-            className="navbar-toggler"
-            type="button"
-            onClick={toggleMobileMenu}
-            aria-expanded={mobileMenuOpen}
-          >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
-
-          <div className={`collapse navbar-collapse ${mobileMenuOpen ? "show" : ""}`}>
-            {/* Left Navigation */}
-            <ul className="navbar-nav me-auto gap-1">
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/admin") ? "active" : ""}`}
-                  to="/admin"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Home size={18} className="me-1" />
-                  Admin Dashboard
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/approve-alumni") ? "active" : ""}`}
-                  to="/approve-alumni"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <CheckSquare size={18} className="me-1" />
-                  Approve Alumni
-                  <span className="badge bg-warning text-dark ms-2">5</span>
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/manage-jobs") ? "active" : ""}`}
-                  to="/manage-jobs"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Briefcase size={18} className="me-1" />
-                  Manage Jobs
-                </Link>
-              </li>
-              <li className="nav-item">
-                <Link
-                  className={`nav-link ${isActive("/announcements") ? "active" : ""}`}
-                  to="/announcements"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <Bell size={18} className="me-1" />
-                  Announcements
-                </Link>
-              </li>
-            </ul>
-
-            {/* Right Navigation */}
-            <ul className="navbar-nav gap-1 align-items-lg-center">
-              {/* Profile Dropdown */}
-              <li className="nav-item dropdown">
-                <button
-                  className="nav-link dropdown-toggle d-flex align-items-center"
-                  onClick={toggleProfileDropdown}
-                  style={{ background: "none", border: "none", cursor: "pointer" }}
-                >
-                  <img 
-                    src={userAvatar}
-                    alt="Profile"
-                    className="rounded-circle me-2"
-                    style={{ width: "32px", height: "32px" }}
-                  />
-                  <span className="badge bg-warning text-dark me-2" title="Profile completion">
-                    {completionPercent}%
-                  </span>
-                  <span>Hi, {user.name?.split(' ')[0] || user.name}</span>
-                </button>
-                {profileDropdown && (
-                  <div className="dropdown-menu show">
-                    <Link
-                      className="dropdown-item"
-                      to="/profile"
-                      onClick={() => {
-                        setProfileDropdown(false);
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      <User size={16} className="me-2" />
-                      Admin Profile
-                    </Link>
-                    <hr className="dropdown-divider" />
-                    <button
-                      className="dropdown-item"
-                      onClick={handleLogout}
-                      style={{ background: "none", border: "none", width: "100%", textAlign: "left" }}
-                    >
-                      <LogOut size={16} className="me-2" />
-                      Logout
-                    </button>
-                  </div>
-                )}
-              </li>
-            </ul>
-          </div>
-        </div>
-      </nav>
-    );
+    return renderModernNavbar({
+      variant: "admin",
+      notificationCount: 5,
+      homeHref: "/admin",
+      links: [
+        { icon: <Home size={16} />, label: "Analytics", href: "/admin" },
+        { icon: <CheckSquare size={16} />, label: "Approve Alumni", href: "/approve-alumni" },
+        { icon: <Briefcase size={16} />, label: "Manage Jobs", href: "/manage-jobs" },
+        { icon: <Calendar size={16} />, label: "Manage Events", href: "/manage-events" },
+        { icon: <Bell size={16} />, label: "Announcements", href: "/announcements" }
+      ],
+      dropdownItems: [
+        { type: "link", label: "Admin Profile", href: "/profile", icon: User },
+        { type: "link", label: "Settings", href: "/profile", icon: Settings },
+        { type: "action", label: "Logout", icon: LogOut, variant: "danger", onClick: handleLogout }
+      ]
+    });
   }
 
   return null;
 };
 
 export default NavBar;
-

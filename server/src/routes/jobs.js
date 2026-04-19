@@ -1,16 +1,57 @@
 import express from "express";
 import { Job } from "../models/Job.js";
 import { Application } from "../models/Application.js";
+import { User } from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 import { requireRole } from "../middleware/roles.js";
 
 const router = express.Router();
 
+const normalizeText = (value = "") =>
+  String(value || "")
+    .toLowerCase()
+    .replace(/[^a-z0-9+.#\s-]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+
+const collectJobText = (job) =>
+  normalizeText([job.title, job.company, job.location, job.type, job.description, ...(job.roles || [])].join(" "));
+
+const scoreJob = (job, skills = []) => {
+  const jobText = collectJobText(job);
+  const matchedSkills = [];
+  let score = 0;
+
+  skills.forEach((skill) => {
+    const normalizedSkill = normalizeText(skill);
+    if (!normalizedSkill) return;
+
+    const skillTokens = normalizedSkill.split(" ").filter(Boolean);
+    const exactHit = jobText.includes(normalizedSkill);
+    const tokenHits = skillTokens.filter((token) => jobText.includes(token)).length;
+
+    if (exactHit) {
+      matchedSkills.push(skill);
+      score += 3;
+    } else if (tokenHits > 0) {
+      matchedSkills.push(skill);
+      score += Math.min(2, tokenHits);
+    }
+  });
+
+  const uniqueMatchedSkills = [...new Set(matchedSkills)];
+
+  return {
+    score,
+    matchedSkills: uniqueMatchedSkills
+  };
+};
+
 router.get("/", requireAuth, async (req, res) => {
   const now = new Date();
   const jobs = await Job.find({
     $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gte: now } }]
-  }).populate("postedBy", "name email alumniProfile");
+  }).populate("postedBy", "name email photoUrl alumniProfile");
   return res.json({ jobs });
 });
 
@@ -42,9 +83,56 @@ router.get("/me/applications", requireAuth, requireRole("student"), async (req, 
   }
 });
 
+router.get("/recommended", requireAuth, requireRole("student"), async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id).select("skills studentProfile branch alumniProfile");
+    const skills = Array.isArray(user?.skills) ? user.skills.filter(Boolean) : [];
+    const profileKeywords = [
+      user?.studentProfile?.branch,
+      user?.studentProfile?.currentYear,
+      user?.studentProfile?.college,
+      user?.studentProfile?.country
+    ].filter(Boolean);
+
+    const now = new Date();
+    const jobs = await Job.find({
+      $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gte: now } }]
+    }).populate("postedBy", "name email photoUrl alumniProfile");
+
+    const rankedJobs = jobs
+      .map((job) => {
+        const skillResult = scoreJob(job, skills);
+        const profileResult = scoreJob(job, profileKeywords);
+        const rawScore = skillResult.score * 3 + profileResult.score;
+        const maxScore = Math.max(1, skills.length * 3 + profileKeywords.length);
+        const matchScore = Math.min(100, Math.round((rawScore / maxScore) * 100));
+
+        return {
+          ...job.toObject(),
+          matchScore,
+          matchScoreRaw: rawScore,
+          matchedSkills: [...new Set([...skillResult.matchedSkills, ...profileResult.matchedSkills])]
+        };
+      })
+      .filter((job) => job.matchScore > 0 || skills.length === 0)
+      .sort((a, b) => {
+        if (b.matchScoreRaw !== a.matchScoreRaw) return b.matchScoreRaw - a.matchScoreRaw;
+        return new Date(b.createdAt || 0) - new Date(a.createdAt || 0);
+      });
+
+    return res.json({
+      recommendedJobs: rankedJobs.slice(0, 8),
+      skills
+    });
+  } catch (err) {
+    console.error("Error loading recommended jobs:", err);
+    return res.status(500).json({ message: "Failed to load recommended jobs" });
+  }
+});
+
 router.get("/:id", requireAuth, async (req, res) => {
   try {
-    const job = await Job.findById(req.params.id).populate("postedBy", "name email alumniProfile");
+    const job = await Job.findById(req.params.id).populate("postedBy", "name email photoUrl alumniProfile");
     if (!job) return res.status(404).json({ message: "Not found" });
     if (job.expiryDate && job.expiryDate < new Date()) {
       return res.status(404).json({ message: "Not found" });

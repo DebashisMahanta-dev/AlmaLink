@@ -1,0 +1,137 @@
+[
+  {
+    "title": "Frontend Engineer",
+    "company": "Wellavia HealthCare",
+    "location": "Kolkata",
+    "type": "Full-time",
+    "description": "Build polished patient-facing experiences, work with React, and ship responsive UI improvements for healthcare workflows.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 45
+  },
+  {
+    "title": "Software Development Engineer I",
+    "company": "Nimbus Pay",
+    "location": "Bengaluru",
+    "type": "Full-time",
+    "description": "Work on scalable fintech products, backend APIs, and production-grade features used by thousands of customers.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 60
+  },
+  {
+    "title": "Data Analyst Intern",
+    "company": "QuantEdge Labs",
+    "location": "Remote",
+    "type": "Internship",
+    "description": "Analyze product metrics, create dashboards, and support decision-making with clean data reporting.",
+    "roles": ["freshers"],
+    "expiryDays": 30
+  },
+  {
+    "title": "Backend Engineer",
+    "company": "CloudForge Systems",
+    "location": "Hyderabad",
+    "type": "Full-time",
+    "description": "Develop reliable APIs, optimize database access, and collaborate on scalable services for enterprise clients.",
+    "roles": ["experienced"],
+    "expiryDays": 50
+  },
+  {
+    "title": "Product Designer",
+    "company": "Studio Arc",
+    "location": "Pune",
+    "type": "Full-time",
+    "description": "Design intuitive product flows, contribute to design systems, and work closely with engineering and product teams.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 40
+  },
+  {
+    "title": "QA Engineer",
+    "company": "ArcByte",
+    "location": "Chennai",
+    "type": "Full-time",
+    "description": "Own test strategy, manual validation, and automation support for release-quality product delivery.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 55
+  },
+  {
+    "title": "Machine Learning Associate",
+    "company": "InsightGrid AI",
+    "location": "Remote",
+    "type": "Full-time",
+    "description": "Support model experimentation, data prep, and deployment workflows for AI-powered applications.",
+    "roles": ["experienced"],
+    "expiryDays": 65
+  },
+  {
+    "title": "Android Developer",
+    "company": "MotionStack",
+    "location": "Noida",
+    "type": "Full-time",
+    "description": "Create smooth Android app experiences, integrate APIs, and improve app performance across devices.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 42
+  },
+  {
+    "title": "DevOps Engineer",
+    "company": "InfraPilot",
+    "location": "Mumbai",
+    "type": "Full-time",
+    "description": "Manage CI/CD pipelines, cloud deployments, and infrastructure monitoring for reliable platform uptime.",
+    "roles": ["experienced"],
+    "expiryDays": 70
+  },
+  {
+    "title": "UI Engineer",
+    "company": "Northstar Digital",
+    "location": "Remote",
+    "type": "Contract",
+    "description": "Translate design systems into clean React components and improve front-end accessibility and speed.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 35
+  },
+  {
+    "title": "Business Analyst",
+    "company": "FinCore",
+    "location": "Kolkata",
+    "type": "Full-time",
+    "description": "Gather requirements, analyze workflows, and support cross-functional execution across finance products.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 48
+  },
+  {
+    "title": "Full Stack Engineer",
+    "company": "CodeHarbor",
+    "location": "Bengaluru",
+    "type": "Full-time",
+    "description": "Build end-to-end product features across React, Node.js, and MongoDB with ownership over delivery.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 58
+  },
+  {
+    "title": "Cloud Support Associate",
+    "company": "SkyOps",
+    "location": "Remote",
+    "type": "Full-time",
+    "description": "Support cloud customers, troubleshoot platform issues, and coordinate with engineering for resolutions.",
+    "roles": ["freshers"],
+    "expiryDays": 32
+  },
+  {
+    "title": "Embedded Software Engineer",
+    "company": "RoboSys",
+    "location": "Pune",
+    "type": "Full-time",
+    "description": "Work on firmware, device integration, and low-level software for robotics and hardware platforms.",
+    "roles": ["experienced"],
+    "expiryDays": 75
+  },
+  {
+    "title": "Content Strategist",
+    "company": "BrightWing Media",
+    "location": "Chennai",
+    "type": "Contract",
+    "description": "Plan content calendars, coordinate campaigns, and help shape a brand voice across channels.",
+    "roles": ["freshers", "experienced"],
+    "expiryDays": 28
+  }
+]

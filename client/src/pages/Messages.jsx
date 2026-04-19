@@ -22,6 +22,7 @@ const Messages = () => {
   const [connectionsLoading, setConnectionsLoading] = useState(true);
   const [connections, setConnections] = useState([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [sendingMessage, setSendingMessage] = useState(false);
   const toast = useToast();
 
   useEffect(() => {
@@ -250,16 +251,27 @@ const Messages = () => {
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
-    if (!messageText.trim() || !selectedConversation?.conversationId) {
+    if (!messageText.trim() || !selectedConversation?.conversationId || sendingMessage) {
       return;
     }
 
+    const content = messageText.trim();
+    setSendingMessage(true);
+
     try {
       const res = await api.post(`/messages/conversations/${selectedConversation.conversationId}/messages`, {
-        content: messageText,
+        content,
       });
 
-      setMessages((prev) => [...prev, res.data.message]);
+      setMessages((prev) => {
+        if (!res.data.message?._id) {
+          return prev;
+        }
+        if (prev.some((existing) => existing._id === res.data.message._id)) {
+          return prev;
+        }
+        return [...prev, res.data.message];
+      });
       setMessageText("");
       setConversations((prev) =>
         prev
@@ -267,7 +279,7 @@ const Messages = () => {
             conv.conversationId === selectedConversation.conversationId
               ? {
                   ...conv,
-                  lastMessage: res.data.message?.content || messageText.trim(),
+                  lastMessage: res.data.message?.content || content,
                   lastMessageTime: res.data.message?.createdAt || new Date().toISOString(),
                   unreadCount: 0,
                 }
@@ -277,7 +289,9 @@ const Messages = () => {
       );
     } catch (err) {
       console.error("Failed to send message", err);
-      toast.error("Failed to send message");
+      toast.error(err?.response?.data?.error || err?.response?.data?.message || "Failed to send message");
+    } finally {
+      setSendingMessage(false);
     }
   };
 
@@ -599,11 +613,12 @@ const Messages = () => {
                   placeholder="Type a message..."
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
+                  disabled={sendingMessage}
                 />
                 <button
                   type="submit"
                   className="btn btn-primary rounded-circle"
-                  disabled={!messageText.trim()}
+                  disabled={!messageText.trim() || sendingMessage}
                 >
                   <Send size={18} />
                 </button>

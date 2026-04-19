@@ -1,40 +1,29 @@
-import React, { useState, useEffect } from "react";
-import { Calendar, MapPin, Clock, Users } from "lucide-react";
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import { Calendar, MapPin, Clock, Users, AlertCircle } from "lucide-react";
 
 const Events = () => {
   const [events, setEvents] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
 
   useEffect(() => {
-    // Mock data - replace with real API call
-    setEvents([
-      {
-        id: 1,
-        title: "Alumni Webinar - Career Growth",
-        date: "Oct 26, 2026",
-        time: "6:00 PM EST",
-        location: "Online",
-        attendees: 45,
-        image: "https://images.unsplash.com/photo-1540575467063-178a50c2df87?w=400&h=300&fit=crop"
-      },
-      {
-        id: 2,
-        title: "Annual Meet & Greet",
-        date: "Oct 23, 2026",
-        time: "3:00 PM EST",
-        location: "Campus Hall",
-        attendees: 120,
-        image: "https://images.unsplash.com/photo-1511578314322-379afb476865?w=400&h=300&fit=crop"
-      },
-      {
-        id: 3,
-        title: "Alumni Webinar - Tech Trends",
-        date: "Nov 15, 2026",
-        time: "7:00 PM EST",
-        location: "Online",
-        attendees: 60,
-        image: "https://images.unsplash.com/photo-1591115765373-5207764f72e7?w=400&h=300&fit=crop"
+    const loadEvents = async () => {
+      setLoading(true);
+      setError("");
+      try {
+        const res = await api.get("/events");
+        setEvents(res.data.events || []);
+      } catch (err) {
+        console.error("Failed to load events", err);
+        setError(err?.response?.data?.message || "Failed to load events");
+        setEvents([]);
+      } finally {
+        setLoading(false);
       }
-    ]);
+    };
+
+    loadEvents();
   }, []);
 
   return (
@@ -44,52 +33,85 @@ const Events = () => {
         <p className="text-muted">Connect with alumni and expand your network</p>
       </div>
 
-      <div className="row g-4">
-        {events.map((event) => (
-          <div key={event.id} className="col-md-6 col-lg-4">
-            <div className="card h-100 border-0 shadow-sm">
-              <img 
-                src={event.image} 
-                alt={event.title}
-                className="card-img-top"
-                style={{ height: "200px", objectFit: "cover" }}
-              />
-              <div className="card-body">
-                <h5 className="card-title fw-bold">{event.title}</h5>
-                
-                <div className="d-flex align-items-center text-muted mb-2">
-                  <Calendar size={16} className="me-2" />
-                  <small>{event.date}</small>
+      {loading ? (
+        <div className="text-center py-5">
+          <div className="spinner-border text-primary" role="status">
+            <span className="visually-hidden">Loading...</span>
+          </div>
+        </div>
+      ) : error ? (
+        <div className="alert alert-danger" role="alert">
+          <AlertCircle size={18} className="me-2" />
+          {error}
+        </div>
+      ) : (
+        <div className="row g-4">
+          {events.map((event) => {
+            const startsAt = new Date(event.startsAt);
+            const day = startsAt.toLocaleDateString(undefined, { day: "2-digit" });
+            const month = startsAt.toLocaleDateString(undefined, { month: "short" }).toUpperCase();
+            const time = startsAt.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" });
+
+            return (
+              <div key={event._id} className="col-md-6 col-lg-4">
+                <div className="card h-100 border-0 shadow-sm rounded-4 overflow-hidden">
+                  <div
+                    className="p-4 text-white d-flex align-items-end"
+                    style={{
+                      minHeight: "180px",
+                      background:
+                        event.imageUrl
+                          ? `linear-gradient(180deg, rgba(10,17,32,0.08), rgba(10,17,32,0.58)), url(${event.imageUrl}) center/cover`
+                          : "linear-gradient(135deg, #1d4ed8 0%, #0f766e 100%)"
+                    }}
+                  >
+                    <div>
+                      <div className="badge bg-light text-dark rounded-pill mb-2 px-3 py-2">
+                        {event.rsvpLabel || event.format || "Event"}
+                      </div>
+                      <h5 className="card-title fw-bold mb-0">{event.title}</h5>
+                    </div>
+                  </div>
+                  <div className="card-body">
+                    <div className="d-flex align-items-center text-muted mb-2">
+                      <Calendar size={16} className="me-2" />
+                      <small>
+                        {month} {day}, {startsAt.getFullYear()}
+                      </small>
+                    </div>
+
+                    <div className="d-flex align-items-center text-muted mb-2">
+                      <Clock size={16} className="me-2" />
+                      <small>{time}</small>
+                    </div>
+
+                    <div className="d-flex align-items-center text-muted mb-2">
+                      <MapPin size={16} className="me-2" />
+                      <small>{event.location || event.format || "Online"}</small>
+                    </div>
+
+                    <div className="d-flex align-items-center text-muted mb-3">
+                      <Users size={16} className="me-2" />
+                      <small>{event.attendingCount || 0} attending</small>
+                    </div>
+
+                    <button className="btn btn-primary w-100" type="button">
+                      Register
+                    </button>
+                  </div>
                 </div>
-                
-                <div className="d-flex align-items-center text-muted mb-2">
-                  <Clock size={16} className="me-2" />
-                  <small>{event.time}</small>
-                </div>
-                
-                <div className="d-flex align-items-center text-muted mb-2">
-                  <MapPin size={16} className="me-2" />
-                  <small>{event.location}</small>
-                </div>
-                
-                <div className="d-flex align-items-center text-muted mb-3">
-                  <Users size={16} className="me-2" />
-                  <small>{event.attendees} attending</small>
-                </div>
-                
-                <button className="btn btn-primary w-100">
-                  Register
-                </button>
+              </div>
+            );
+          })}
+
+          {events.length === 0 && (
+            <div className="col-12">
+              <div className="text-center py-5">
+                <Calendar size={64} className="text-muted mb-3" />
+                <p className="text-muted">No upcoming events at the moment</p>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-
-      {events.length === 0 && (
-        <div className="text-center py-5">
-          <Calendar size={64} className="text-muted mb-3" />
-          <p className="text-muted">No upcoming events at the moment</p>
+          )}
         </div>
       )}
     </div>

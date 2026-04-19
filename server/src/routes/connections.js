@@ -14,8 +14,8 @@ router.get("/", requireAuth, async (req, res) => {
         { receiver: req.user._id, status: "accepted" }
       ]
     })
-      .populate("sender", "name email")
-      .populate("receiver", "name email")
+      .populate("sender", "name email photoUrl alumniProfile studentProfile")
+      .populate("receiver", "name email photoUrl alumniProfile studentProfile")
       .sort({ updatedAt: -1 });
 
     // Format response to always show the "other" user
@@ -39,7 +39,7 @@ router.get("/requests/pending", requireAuth, async (req, res) => {
       receiver: req.user._id,
       status: "pending"
     })
-      .populate("sender", "name email role alumniProfile studentProfile")
+      .populate("sender", "name email photoUrl role alumniProfile studentProfile")
       .sort({ createdAt: -1 });
 
     return res.json({ requests });
@@ -56,7 +56,7 @@ router.get("/requests/sent", requireAuth, async (req, res) => {
       sender: req.user._id,
       status: "pending"
     })
-      .populate("receiver", "name email role alumniProfile studentProfile")
+      .populate("receiver", "name email photoUrl role alumniProfile studentProfile")
       .sort({ createdAt: -1 });
 
     return res.json({ requests });

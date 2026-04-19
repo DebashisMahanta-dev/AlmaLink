@@ -1,7 +1,16 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import { Briefcase, Users, Calendar } from "lucide-react";
+import {
+  Briefcase,
+  Users,
+  Calendar,
+  Sparkles,
+  Linkedin,
+  Instagram,
+  Facebook,
+  Twitter,
+} from "lucide-react";
 
 const Landing = () => {
   const { user } = useAuth();
@@ -12,19 +21,15 @@ const Landing = () => {
 
   return (
     <div className="landing-page">
-      {/* Hero Section with Background */}
-      <section className="hero-section" style={{
-        backgroundImage: "linear-gradient(rgba(0, 0, 0, 0.4), rgba(0, 0, 0, 0.4)), url('https://images.unsplash.com/photo-1552664730-d307ca884978?w=1200&h=600&fit=crop')",
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-        minHeight: "500px",
-        display: "flex",
-        alignItems: "center",
-        color: "white"
-      }}>
-        <div className="container">
+      {/* Hero Section with Video Background */}
+      <section className="hero-section hero-section--video">
+        <video className="hero-video" autoPlay muted loop playsInline preload="auto">
+          <source src="/Herosection.mp4" type="video/mp4" />
+        </video>
+        <div className="hero-overlay" />
+        <div className="container hero-content">
           <div className="row align-items-center">
-            <div className="col-lg-6">
+            <div className="col-lg-7">
               <h1 className="display-3 fw-bold mb-3">Government College of Engineering<br />Alumni and Student Portal</h1>
               <p className="lead mb-4">
                 A private community to unlock career opportunities, mentorship, and collaboration
@@ -153,40 +158,74 @@ const Landing = () => {
       </section>
 
       {/* Footer */}
-      <footer className="py-5 bg-dark text-white" style={{ borderTop: "1px solid #333" }}>
+      <footer className="landing-footer landing-footer--light">
         <div className="container">
-          <div className="row mb-4">
-            <div className="col-md-3">
-              <h6 className="fw-bold mb-3">About Us</h6>
-              <p className="small" style={{ color: "#ccc", lineHeight: "1.6" }}>
-                A private platform for Government College of Engineering students and alumni.
+          <div className="landing-footer__grid">
+            <div className="landing-footer__brand">
+              <span className="landing-footer__eyebrow">
+                <Sparkles size={14} />
+                GCE Connect
+              </span>
+              <h3 className="landing-footer__title">Building stronger alumni and student connections.</h3>
+              <p className="landing-footer__description">
+                Government College of Engineering's private community for jobs, mentorship, events, and meaningful
+                alumni engagement.
               </p>
-            </div>
-            <div className="col-md-3">
-              <h6 className="fw-bold mb-3">Contact</h6>
-              <p className="small" style={{ color: "#ccc" }}>
-                <a href="mailto:support@alumnconnect.com" style={{ color: "#ccc", textDecoration: "none" }}>
-                  support@alumnconnect.com
+              <div className="landing-footer__socials">
+                <a href="https://www.linkedin.com" target="_blank" rel="noreferrer" aria-label="LinkedIn">
+                  <Linkedin size={18} />
                 </a>
-              </p>
+                <a href="https://www.instagram.com" target="_blank" rel="noreferrer" aria-label="Instagram">
+                  <Instagram size={18} />
+                </a>
+                <a href="https://www.facebook.com" target="_blank" rel="noreferrer" aria-label="Facebook">
+                  <Facebook size={18} />
+                </a>
+                <a href="https://www.twitter.com" target="_blank" rel="noreferrer" aria-label="Twitter">
+                  <Twitter size={18} />
+                </a>
+              </div>
             </div>
-            <div className="col-md-3">
-              <h6 className="fw-bold mb-3">Privacy</h6>
-              <p className="small" style={{ color: "#ccc" }}>
-                <Link to="/about" style={{ color: "#ccc", textDecoration: "none" }}>Privacy Policy</Link>
-              </p>
+
+            <div className="landing-footer__column">
+              <h6>Products</h6>
+              <Link to="/dashboard">Dashboard</Link>
+              <Link to="/jobs">Jobs</Link>
+              <Link to="/events">Events</Link>
+              <Link to="/messages">Messages</Link>
             </div>
-            <div className="col-md-3">
-              <h6 className="fw-bold mb-3">Terms</h6>
-              <p className="small" style={{ color: "#ccc" }}>
-                <Link to="/about" style={{ color: "#ccc", textDecoration: "none" }}>Terms of Service</Link>
-              </p>
+
+            <div className="landing-footer__column">
+              <h6>Resources</h6>
+              <Link to="/about">About Us</Link>
+              <Link to="/alumni-directory">Alumni Directory</Link>
+              <Link to="/alumni-network">Community</Link>
+              <Link to="/profile">Profile</Link>
             </div>
+
+            <div className="landing-footer__column">
+              <h6>Company</h6>
+              <Link to="/about">Mission</Link>
+              <Link to="/about">Contact</Link>
+              <a
+                href="https://www.google.com/maps/search/?api=1&query=Government+College+of+Engineering"
+                target="_blank"
+                rel="noreferrer"
+              >
+                Campus Map
+              </a>
+              <Link to="/about">FAQs</Link>
+            </div>
+
           </div>
-          <div style={{ borderTop: "1px solid #444", paddingTop: "20px" }} className="text-center">
-            <p className="small mb-0" style={{ color: "#999" }}>
-              &copy; 2026 GCE Connect | Government College of Engineering. All rights reserved.
-            </p>
+
+          <div className="landing-footer__bottom landing-footer__bottom--light">
+            <p>&copy; 2026 GCE Connect | Government College of Engineering. All rights reserved.</p>
+            <div className="landing-footer__bottom-links">
+              <Link to="/privacy-policy">Privacy Policy</Link>
+              <Link to="/terms-of-service">Terms of Service</Link>
+              <Link to="/cookie-policy">Cookie Policy</Link>
+            </div>
           </div>
         </div>
       </footer>

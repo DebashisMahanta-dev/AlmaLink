@@ -1,98 +1,302 @@
 import nodemailer from "nodemailer";
 
-const transporter = nodemailer.createTransport({
+const RESEND_API_URL = "https://api.resend.com/emails";
+
+const fromAddress = process.env.RESEND_FROM || process.env.EMAIL_FROM || "AlmaLink <noreply@almalink.com>";
+const resendApiKey = process.env.RESEND_API_KEY || "";
+
+const htmlWrapper = (title, body) => `
+  <div style="font-family: Arial, sans-serif; background: #f6f9fc; padding: 24px;">
+    <div style="max-width: 640px; margin: 0 auto; background: #ffffff; border-radius: 18px; overflow: hidden; border: 1px solid #e6edf5;">
+      <div style="padding: 28px 28px 18px; background: linear-gradient(135deg, #0f2742 0%, #185fa5 100%); color: #ffffff;">
+        <div style="font-size: 20px; font-weight: 800; letter-spacing: 0.02em;">GCE Connect</div>
+        <div style="margin-top: 8px; font-size: 13px; opacity: 0.88;">${title}</div>
+      </div>
+      <div style="padding: 28px; color: #15304c;">
+        ${body}
+      </div>
+    </div>
+  </div>
+`;
+
+const buildLinkButton = (href, label) => `
+  <div style="margin: 24px 0 8px;">
+    <a href="${href}" style="display:inline-block; background: linear-gradient(135deg, #20b14a 0%, #31c85d 100%); color: #ffffff; text-decoration:none; padding: 12px 22px; border-radius: 999px; font-weight: 700;">
+      ${label}
+    </a>
+  </div>
+`;
+
+const sendViaResend = async ({ to, subject, html, text, bcc }) => {
+  if (!resendApiKey) {
+    return false;
+  }
+
+  const payload = {
+    from: fromAddress,
+    to,
+    subject,
+    html,
+    text
+  };
+
+  if (bcc?.length) {
+    payload.bcc = bcc;
+  }
+
+  const response = await fetch(RESEND_API_URL, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${resendApiKey}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Resend request failed (${response.status}): ${details}`);
+  }
+
+  return true;
+};
+
+const fallbackTransporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || "smtp.gmail.com",
   port: process.env.SMTP_PORT || 587,
   secure: process.env.SMTP_SECURE === "true",
-  auth: {
-    user: process.env.SMTP_USER || "your-email@gmail.com",
-    pass: process.env.SMTP_PASS || "your-app-password"
-  }
+  auth: process.env.SMTP_USER
+    ? {
+        user: process.env.SMTP_USER,
+        pass: process.env.SMTP_PASS || ""
+      }
+    : undefined
 });
 
-export const sendVerificationEmail = async (email, name, verificationOTP, verificationLink) => {
-  const mailOptions = {
-    from: process.env.SMTP_USER || "noreply@almalink.com",
-    to: email,
-    subject: "Your AlmaLink Email Verification Code",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #94c2c7 0%, #7fa9b0 50%, #4a8a95 100%); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="color: white; margin: 0;">🎓 AlmaLink</h1>
-        </div>
-        <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 12px 12px;">
-          <h2 style="color: #333; margin-top: 0;">Welcome to AlmaLink, ${name}!</h2>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            Thank you for registering with AlmaLink. To verify your email address, use the verification code below:
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <div style="background: #f5f5f5; padding: 20px; border-radius: 8px; letter-spacing: 8px; font-size: 32px; font-weight: bold; color: #52b788; font-family: 'Courier New', monospace;">
-              ${verificationOTP}
-            </div>
-          </div>
-          <p style="color: #666; font-size: 14px; text-align: center;">
-            This code will expire in <strong>10 minutes</strong>.
-          </p>
-          <p style="color: #999; font-size: 14px;">
-            Or click the link below to verify directly:
-          </p>
-          <div style="text-align: center; margin: 20px 0;">
-            <a href="${verificationLink}" style="background-color: #52b788; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              Verify Email
-            </a>
-          </div>
-          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            If you didn't sign up for AlmaLink, you can ignore this email.
-          </p>
-        </div>
-      </div>
-    `
-  };
+const sendFallbackEmail = async ({ to, subject, html, text, bcc }) => {
+  if (!process.env.SMTP_USER && !process.env.SMTP_PASS) {
+    return false;
+  }
 
+  await fallbackTransporter.sendMail({
+    from: process.env.SMTP_FROM || process.env.SMTP_USER || fromAddress,
+    to,
+    bcc: bcc?.length ? bcc.join(", ") : undefined,
+    subject,
+    html,
+    text
+  });
+
+  return true;
+};
+
+export const sendEmail = async ({ to, subject, html, text, bcc }) => {
   try {
-    await transporter.sendMail(mailOptions);
-    return true;
+    const sentViaResend = await sendViaResend({ to, subject, html, text, bcc });
+    if (sentViaResend) {
+      return true;
+    }
+
+    const sentViaFallback = await sendFallbackEmail({ to, subject, html, text, bcc });
+    if (sentViaFallback) {
+      return true;
+    }
+
+    console.warn("[email] No mail provider configured. Skipping email send.");
+    return false;
   } catch (error) {
-    console.error("Email sending failed:", error);
+    console.error("[email] Failed to send email:", error.message);
     return false;
   }
 };
 
+export const sendBulkEmail = async ({ recipients = [], subject, html, text }) => {
+  if (!recipients.length) {
+    return { sent: 0, failed: 0 };
+  }
+
+  const results = await Promise.allSettled(
+    recipients.map((recipient) =>
+      sendEmail({
+        to: recipient.email,
+        subject,
+        html: html(recipient),
+        text: typeof text === "function" ? text(recipient) : text
+      })
+    )
+  );
+
+  return results.reduce(
+    (acc, result) => {
+      if (result.status === "fulfilled" && result.value) {
+        acc.sent += 1;
+      } else {
+        acc.failed += 1;
+      }
+      return acc;
+    },
+    { sent: 0, failed: 0 }
+  );
+};
+
+export const sendVerificationEmail = async (email, name, verificationOTP, verificationLink) => {
+  return sendEmail({
+    to: email,
+    subject: "Your AlmaLink Email Verification Code",
+    html: htmlWrapper(
+      "Email verification",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">Welcome to AlmaLink, ${name}!</h2>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">
+          Use the verification code below to confirm your email address.
+        </p>
+        <div style="text-align: center; margin: 28px 0;">
+          <div style="display:inline-block; background:#f3f7fb; color:#20b14a; font-size: 32px; font-weight: 800; letter-spacing: 8px; padding: 18px 26px; border-radius: 14px;">
+            ${verificationOTP}
+          </div>
+        </div>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">This code expires in 10 minutes.</p>
+        ${buildLinkButton(verificationLink, "Verify Email")}
+      `
+    ),
+    text: `Welcome to AlmaLink, ${name}! Your verification code is ${verificationOTP}. Visit ${verificationLink} to verify your email.`
+  });
+};
+
 export const sendWelcomeEmail = async (email, name) => {
-  const mailOptions = {
-    from: process.env.SMTP_USER || "noreply@almalink.com",
+  return sendEmail({
     to: email,
     subject: "Welcome to AlmaLink!",
-    html: `
-      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-        <div style="background: linear-gradient(135deg, #94c2c7 0%, #7fa9b0 50%, #4a8a95 100%); padding: 20px; border-radius: 12px 12px 0 0; text-align: center;">
-          <h1 style="color: white; margin: 0;">🎓 AlmaLink</h1>
-        </div>
-        <div style="background: white; padding: 30px; border: 1px solid #e0e0e0; border-radius: 0 0 12px 12px;">
-          <h2 style="color: #333; margin-top: 0;">Welcome, ${name}!</h2>
-          <p style="color: #666; font-size: 16px; line-height: 1.6;">
-            Your email has been verified! You can now log in and start connecting with alumni and exploring opportunities.
-          </p>
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${process.env.CLIENT_URL}" style="background-color: #52b788; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; font-weight: bold; display: inline-block;">
-              Go to AlmaLink
-            </a>
-          </div>
-          <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 20px 0;">
-          <p style="color: #999; font-size: 12px; text-align: center;">
-            © 2026 AlmaLink. All rights reserved.
-          </p>
-        </div>
-      </div>
-    `
-  };
+    html: htmlWrapper(
+      "Welcome",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">Welcome, ${name}!</h2>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">
+          Your email has been verified. You can now log in and start connecting with alumni and exploring opportunities.
+        </p>
+        ${buildLinkButton(process.env.CLIENT_URL || "http://localhost:5173", "Go to AlmaLink")}
+      `
+    ),
+    text: `Welcome, ${name}! Your email has been verified. Visit ${process.env.CLIENT_URL || "http://localhost:5173"} to continue.`
+  });
+};
 
-  try {
-    await transporter.sendMail(mailOptions);
-    return true;
-  } catch (error) {
-    console.error("Welcome email sending failed:", error);
-    return false;
-  }
+export const sendAlumniApprovalEmail = async ({ email, name }) => {
+  return sendEmail({
+    to: email,
+    subject: "Your GCE Connect account has been approved",
+    html: htmlWrapper(
+      "Account approved",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">Hello ${name}, your alumni account is approved.</h2>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">
+          You can now access alumni features, post jobs, and participate in the community.
+        </p>
+        ${buildLinkButton(process.env.CLIENT_URL || "http://localhost:5173", "Open GCE Connect")}
+      `
+    ),
+    text: `Hello ${name}, your alumni account is approved. Visit ${process.env.CLIENT_URL || "http://localhost:5173"} to continue.`
+  });
+};
+
+export const sendNewJobAlertEmail = async ({ email, name, job, matchScore, matchedSkills = [] }) => {
+  const skillsLine = matchedSkills.length ? matchedSkills.slice(0, 3).join(", ") : "your profile";
+  return sendEmail({
+    to: email,
+    subject: `New job match: ${job.title} at ${job.company}`,
+    html: htmlWrapper(
+      "New job alert",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">Hi ${name}, a new job may fit your profile.</h2>
+        <p style="margin: 0 0 12px; color: #607286; line-height: 1.7;">
+          <strong>${job.title}</strong> at <strong>${job.company}</strong> is now live.
+        </p>
+        <p style="margin: 0 0 18px; color: #607286; line-height: 1.7;">
+          Match score: <strong>${matchScore || 0}%</strong><br />
+          Matched skills: ${skillsLine}
+        </p>
+        ${buildLinkButton(`${process.env.CLIENT_URL || "http://localhost:5173"}/jobs/${job._id}`, "View Job")}
+      `
+    ),
+    text: `A new job may fit your profile: ${job.title} at ${job.company}. Match score ${matchScore || 0}%.`
+  });
+};
+
+export const sendJobApplicationEmailToPoster = async ({ email, name, job, student }) => {
+  return sendEmail({
+    to: email,
+    subject: `New application for ${job.title}`,
+    html: htmlWrapper(
+      "New application",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">${student.name} applied to your job post.</h2>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">
+          Job: <strong>${job.title}</strong> at <strong>${job.company}</strong><br />
+          Applicant: <strong>${student.name}</strong> (${student.email})
+        </p>
+        ${buildLinkButton(`${process.env.CLIENT_URL || "http://localhost:5173"}/jobs/${job._id}`, "Review Job")}
+      `
+    ),
+    text: `${student.name} applied to ${job.title} at ${job.company}.`
+  });
+};
+
+export const sendJobApplicationConfirmation = async ({ email, name, job }) => {
+  return sendEmail({
+    to: email,
+    subject: `Application submitted for ${job.title}`,
+    html: htmlWrapper(
+      "Application submitted",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">Hi ${name}, your application is submitted.</h2>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">
+          You applied for <strong>${job.title}</strong> at <strong>${job.company}</strong>.
+        </p>
+        ${buildLinkButton(`${process.env.CLIENT_URL || "http://localhost:5173"}/jobs/${job._id}`, "View Job")}
+      `
+    ),
+    text: `Your application for ${job.title} at ${job.company} has been submitted.`
+  });
+};
+
+export const sendNewEventAlertEmail = async ({ email, name, event }) => {
+  return sendEmail({
+    to: email,
+    subject: `New event: ${event.title}`,
+    html: htmlWrapper(
+      "New event alert",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">Hi ${name}, a new event is coming up.</h2>
+        <p style="margin: 0 0 12px; color: #607286; line-height: 1.7;">
+          <strong>${event.title}</strong><br />
+          ${new Date(event.startsAt).toLocaleString()}<br />
+          ${event.location || event.format || "Online"}
+        </p>
+        ${buildLinkButton(`${process.env.CLIENT_URL || "http://localhost:5173"}/events`, "View Events")}
+      `
+    ),
+    text: `New event: ${event.title} at ${new Date(event.startsAt).toLocaleString()}.`
+  });
+};
+
+export const sendEventRegistrationEmail = async ({ email, name, event }) => {
+  return sendEmail({
+    to: email,
+    subject: `You're registered for ${event.title}`,
+    html: htmlWrapper(
+      "Event registration",
+      `
+        <h2 style="margin: 0 0 12px; color: #15304c;">You're registered, ${name}.</h2>
+        <p style="margin: 0 0 12px; color: #607286; line-height: 1.7;">
+          You’ve successfully registered for <strong>${event.title}</strong>.
+        </p>
+        <p style="margin: 0; color: #607286; line-height: 1.7;">
+          When: ${new Date(event.startsAt).toLocaleString()}<br />
+          Where: ${event.location || event.format || "Online"}
+        </p>
+        ${buildLinkButton(`${process.env.CLIENT_URL || "http://localhost:5173"}/events`, "View Event")}
+      `
+    ),
+    text: `You're registered for ${event.title}.`
+  });
 };

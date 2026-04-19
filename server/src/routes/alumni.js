@@ -54,7 +54,7 @@ router.get("/", requireAuth, async (req, res) => {
     query.$and = andConditions;
   }
 
-  const alumni = await User.find(query).select("name email role alumniProfile studentProfile skills");
+  const alumni = await User.find(query).select("name email role photoUrl alumniProfile studentProfile skills");
   return res.json({ alumni });
 });
 

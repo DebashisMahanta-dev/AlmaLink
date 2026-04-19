@@ -3,7 +3,7 @@ import { useNavigate } from "react-router-dom";
 import api from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useToast } from "../context/ToastContext";
-import { Briefcase, MapPin, Building, Calendar, Users, AlertCircle, Filter } from "lucide-react";
+import { Briefcase, MapPin, Building, Calendar, Users, AlertCircle, Filter, Sparkles } from "lucide-react";
 
 const Jobs = () => {
   const navigate = useNavigate();
@@ -18,10 +18,13 @@ const Jobs = () => {
     roles: ""
   });
   const [appliedJobs, setAppliedJobs] = useState(new Set());
+  const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [recommendedLoading, setRecommendedLoading] = useState(false);
 
   useEffect(() => {
     loadJobs();
     loadAppliedJobs();
+    loadRecommendedJobs();
   }, []);
 
   const loadJobs = async () => {
@@ -47,6 +50,24 @@ const Jobs = () => {
       } catch (err) {
         console.error("Error loading applied jobs:", err);
       }
+    }
+  };
+
+  const loadRecommendedJobs = async () => {
+    if (user?.role !== "student") {
+      setRecommendedJobs([]);
+      return;
+    }
+
+    setRecommendedLoading(true);
+    try {
+      const res = await api.get("/jobs/recommended");
+      setRecommendedJobs(res.data.recommendedJobs || []);
+    } catch (err) {
+      console.error("Error loading recommended jobs:", err);
+      setRecommendedJobs([]);
+    } finally {
+      setRecommendedLoading(false);
     }
   };
 
@@ -82,6 +103,84 @@ const Jobs = () => {
             <p className="text-muted">Browse job postings shared by Government College of Engineering alumni</p>
           </div>
         </div>
+
+        {user?.role === "student" && (
+          <div className="card border-0 shadow-sm mb-4" style={{ background: "linear-gradient(135deg, #f8fbff 0%, #eef6ff 100%)" }}>
+            <div className="card-body">
+              <div className="d-flex align-items-center justify-content-between flex-wrap gap-3 mb-3">
+                <div>
+                  <h5 className="card-title fw-bold mb-1 d-flex align-items-center gap-2">
+                    <Sparkles size={20} className="text-primary" />
+                    Recommended for you
+                  </h5>
+                  <p className="text-muted small mb-0">
+                    Jobs matched to your profile skills and branch.
+                  </p>
+                </div>
+                <span className="badge rounded-pill text-bg-primary-subtle text-primary border border-primary-subtle">
+                  {recommendedJobs.length} matches
+                </span>
+              </div>
+
+              {recommendedLoading ? (
+                <div className="text-center py-4">
+                  <div className="spinner-border text-primary" role="status">
+                    <span className="visually-hidden">Loading...</span>
+                  </div>
+                </div>
+              ) : recommendedJobs.length > 0 ? (
+                <div className="row g-3">
+                  {recommendedJobs.slice(0, 4).map((job) => (
+                    <div key={job._id} className="col-md-6 col-xl-3">
+                      <div className="card h-100 border-primary-subtle shadow-sm" style={{ background: "#fff" }}>
+                        <div className="card-body d-flex flex-column">
+                          <div className="d-flex justify-content-between align-items-start gap-2 mb-2">
+                            <h6 className="fw-bold mb-0">{job.title}</h6>
+                            <span className="badge rounded-pill text-bg-success-subtle text-success">
+                              {job.matchScore || 0}%
+                            </span>
+                          </div>
+                          <div className="text-muted small mb-2">{job.company}</div>
+                          {job.matchedSkills?.length > 0 && (
+                            <div className="d-flex flex-wrap gap-1 mb-3">
+                              {job.matchedSkills.slice(0, 3).map((skill) => (
+                                <span key={skill} className="badge text-bg-light border text-secondary">
+                                  {skill}
+                                </span>
+                              ))}
+                            </div>
+                          )}
+                          <p
+                            className="text-muted small mb-3"
+                            style={{
+                              overflow: "hidden",
+                              textOverflow: "ellipsis",
+                              display: "-webkit-box",
+                              WebkitLineClamp: 3,
+                              WebkitBoxOrient: "vertical"
+                            }}
+                          >
+                            {job.description}
+                          </p>
+                          <button
+                            className="btn btn-primary btn-sm rounded-pill mt-auto"
+                            onClick={() => handleViewJob(job._id)}
+                          >
+                            View Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="alert alert-light border mb-0">
+                  Add more skills in your profile to see stronger job matches.
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="card bg-white border-0 shadow-sm mb-4">

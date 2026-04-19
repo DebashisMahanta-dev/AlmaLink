@@ -35,6 +35,7 @@ const UserSchema = new mongoose.Schema(
     verificationToken: { type: String, default: null }, // Legacy token for backward compatibility
     verificationTokenExpiry: { type: Date, default: null },
     photoUrl: { type: String, default: "" },
+    bannerUrl: { type: String, default: "" },
     bio: { type: String, default: "" },
     onboardingCompleted: { type: Boolean, default: true },
     skills: { type: [String], default: [] },

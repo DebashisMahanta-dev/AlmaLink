@@ -1,122 +1,196 @@
 import React from "react";
+import {
+  FaShieldHalved,
+  FaBullseye,
+  FaGears,
+  FaStar,
+  FaUsers,
+  FaQuoteLeft,
+  FaHandshake,
+  FaBriefcase,
+  FaChalkboardUser,
+  FaPeopleGroup,
+  FaAddressBook,
+  FaBagShopping,
+  FaComments,
+  FaUserShield,
+  FaGraduationCap,
+  FaUserTie,
+  FaArrowRight,
+  FaUserPlus,
+  FaCirclePlay
+} from "react-icons/fa6";
+import "./AboutUs.css";
 
-const About = () => {
+const whatWeDoItems = [
+  {
+    icon: <FaHandshake />,
+    title: "Connect alumni with students",
+    desc: "Build meaningful professional relationships across generations of GCE graduates."
+  },
+  {
+    icon: <FaBriefcase />,
+    title: "Share opportunities",
+    desc: "Alumni post exclusive job and internship openings available only to our community."
+  },
+  {
+    icon: <FaChalkboardUser />,
+    title: "Provide mentorship",
+    desc: "Experienced professionals guide students through every step of career development."
+  },
+  {
+    icon: <FaPeopleGroup />,
+    title: "Build community",
+    desc: "Foster a strong college community that supports the growth of every member."
+  }
+];
+
+const keyFeatures = [
+  {
+    icon: <FaAddressBook />,
+    title: "Alumni directory",
+    desc: "Search alumni by graduation year, branch, company, and location."
+  },
+  {
+    icon: <FaBagShopping />,
+    title: "Job opportunities",
+    desc: "Exclusive internship and job postings from alumni at top companies."
+  },
+  {
+    icon: <FaComments />,
+    title: "Direct messaging",
+    desc: "Connect one-on-one with alumni through our in-app messaging system."
+  },
+  {
+    icon: <FaUserShield />,
+    title: "Admin moderation",
+    desc: "A dedicated team ensures a safe, private, and professional space for all."
+  }
+];
+
+export default function About() {
   return (
-    <div className="container py-5">
-      <div className="row">
-        <div className="col-md-8 mx-auto">
-          <h1 className="mb-4">About GCE Connect</h1>
-          
-          <section className="mb-5">
-            <h3 className="mb-3">Our Mission</h3>
-            <p className="lead">
-              GCE Connect is a private digital bridge between current students and alumni of Government College of Engineering.
-              We believe in fostering strong connections that create lasting professional relationships and
-              provide invaluable mentorship opportunities.
-            </p>
-          </section>
-
-          <section className="mb-5">
-            <h3 className="mb-3">What We Do</h3>
-            <ul className="list-group list-group-flush">
-              <li className="list-group-item">
-                <strong>Connect Alumni with Students:</strong> Build meaningful professional relationships across generations.
-              </li>
-              <li className="list-group-item">
-                <strong>Share Opportunities:</strong> Alumni post job and internship opportunities exclusively for our community.
-              </li>
-              <li className="list-group-item">
-                <strong>Provide Mentorship:</strong> Experienced professionals guide students through career development.
-              </li>
-              <li className="list-group-item">
-                <strong>Build Community:</strong> Foster a strong college community that supports each member's growth.
-              </li>
-            </ul>
-          </section>
-
-          <section className="mb-5">
-            <h3 className="mb-3">Key Features</h3>
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <div className="card border-0 h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">👥 Alumni Directory</h5>
-                    <p className="card-text">
-                      Search and connect with alumni by graduation year, branch, company, and location.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6 mb-3">
-                <div className="card border-0 h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">💼 Job Opportunities</h5>
-                    <p className="card-text">
-                      Discover exclusive job and internship postings from alumni at leading companies.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6 mb-3">
-                <div className="card border-0 h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">💬 Direct Messaging</h5>
-                    <p className="card-text">
-                      Connect directly with alumni through our in-app messaging system.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6 mb-3">
-                <div className="card border-0 h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">✅ Admin Moderation</h5>
-                    <p className="card-text">
-                      Our admin team ensures this remains a safe, private, and professional space for Government College of Engineering members.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-5">
-            <h3 className="mb-3">Who Can Join?</h3>
-            <div className="row">
-              <div className="col-md-6 mb-3">
-                <div className="card border-left-primary h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">🎓 Students</h5>
-                    <p className="card-text">
-                      Current students looking to explore career opportunities and connect with experienced professionals.
-                    </p>
-                  </div>
-                </div>
-              </div>
-              <div className="col-md-6 mb-3">
-                <div className="card border-left-success h-100">
-                  <div className="card-body">
-                    <h5 className="card-title">🧑‍💼 Alumni</h5>
-                    <p className="card-text">
-                      Graduates of our institution willing to share opportunities and mentor the next generation.
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </section>
-
-          <section className="mb-5">
-            <h3 className="mb-3">Get Started</h3>
-            <p>
-              Ready to join our community? Register your account today and start connecting with fellow students and alumni
-              and discovering exciting opportunities.
-            </p>
-          </section>
+    <div className="about-wrapper">
+      <section className="hero">
+        <div className="hero-badge">
+          <FaShieldHalved className="badge-icon" />
+          Private &amp; Verified Community
         </div>
+        <h1>
+          Welcome to <span className="hero-highlight">GCE Connect</span>
+        </h1>
+        <p className="hero-sub">
+          A private digital bridge between current students and alumni of Government College of
+          Engineering - fostering connections that last a lifetime.
+        </p>
+        <div className="hero-btns">
+          <button className="btn-primary">
+            <FaUserPlus className="btn-icon" /> Get started
+          </button>
+          <button className="btn-outline">
+            <FaCirclePlay className="btn-icon" /> Learn more
+          </button>
+        </div>
+      </section>
+
+      <section className="section">
+        <p className="section-label">
+          <FaBullseye className="label-icon" /> Our mission
+        </p>
+        <h2 className="section-title">Why we exist</h2>
+        <p className="section-desc">
+          We believe strong alumni-student connections create lasting professional relationships
+          and provide invaluable mentorship opportunities.
+        </p>
+        <div className="mission-card">
+          <div className="mission-icon">
+            <FaQuoteLeft />
+          </div>
+          <p>
+            GCE Connect exists to foster strong connections that create lasting professional
+            relationships and provide invaluable mentorship opportunities - bridging the gap
+            between experience and ambition.
+          </p>
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <section className="section">
+        <p className="section-label">
+          <FaGears className="label-icon" /> What we do
+        </p>
+        <h2 className="section-title">How we help you grow</h2>
+        <div className="what-grid">
+          {whatWeDoItems.map((item, i) => (
+            <div className="what-card" key={i}>
+              <div className="what-icon">{item.icon}</div>
+              <h3>{item.title}</h3>
+              <p>{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <section className="section">
+        <p className="section-label">
+          <FaStar className="label-icon" /> Key features
+        </p>
+        <h2 className="section-title">Everything you need</h2>
+        <div className="features-grid">
+          {keyFeatures.map((item, i) => (
+            <div className="feature-card" key={i}>
+              <span className="feature-icon">{item.icon}</span>
+              <h3>{item.title}</h3>
+              <p>{item.desc}</p>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      <div className="divider" />
+
+      <section className="section">
+        <p className="section-label">
+          <FaUsers className="label-icon" /> Who can join
+        </p>
+        <h2 className="section-title">Made for our community</h2>
+        <div className="who-row">
+          <div className="who-card">
+            <div className="who-avatar student">
+              <FaGraduationCap />
+            </div>
+            <h3>Students</h3>
+            <p>
+              Current students looking to explore career opportunities and connect with experienced
+              professionals from GCE.
+            </p>
+          </div>
+          <div className="who-card">
+            <div className="who-avatar alumni">
+              <FaUserTie />
+            </div>
+            <h3>Alumni</h3>
+            <p>
+              Graduates of our institution willing to share their expertise, post opportunities,
+              and mentor the next generation of engineers.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <div className="cta-strip">
+        <h2>Ready to join the community?</h2>
+        <p>
+          Register today and start connecting with fellow students and alumni - discover
+          opportunities built just for you.
+        </p>
+        <button className="btn-primary">
+          <FaArrowRight className="btn-icon" /> Register now
+        </button>
       </div>
     </div>
   );
-};
-
-export default About;
+}

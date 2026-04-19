@@ -13,6 +13,7 @@ import adminRoutes from "./routes/admin.js";
 import messageRoutes from "./routes/messages.js";
 import postRoutes from "./routes/posts.js";
 import connectionRoutes from "./routes/connections.js";
+import eventRoutes from "./routes/events.js";
 import profileRoutes from "./routes/profile.js";
 import { startJobExpiryCleanup } from "./services/jobExpiryService.js";
 import { errorHandler } from "./middleware/error.js";
@@ -27,7 +28,7 @@ const CLIENT_URL = process.env.CLIENT_URL || "http://localhost:5173";
 const ALLOWED_ORIGINS = [CLIENT_URL, "http://localhost:5173", "http://localhost:5174", "http://localhost:5175"];
 
 app.use(cors({ origin: ALLOWED_ORIGINS }));
-app.use(express.json());
+app.use(express.json({ limit: "25mb" }));
 app.use(morgan("dev"));
 
 const __filename = fileURLToPath(import.meta.url);
@@ -38,6 +39,7 @@ app.get("/api/health", (req, res) => res.json({ status: "ok" }));
 app.use("/api/auth", authRoutes);
 app.use("/api/alumni", alumniRoutes);
 app.use("/api/connections", connectionRoutes);
+app.use("/api/events", eventRoutes);
 app.use("/api/jobs", jobRoutes);
 app.use("/api/admin", adminRoutes);
 app.use("/api/messages", messageRoutes);
