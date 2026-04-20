@@ -18,10 +18,14 @@ const PostJob = () => {
     roles: ["freshers", "experienced"]
   });
   const [error, setError] = useState("");
+  const [duplicateJob, setDuplicateJob] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (duplicateJob) {
+      setDuplicateJob(null);
+    }
     setFormData(prev => ({
       ...prev,
       [name]: value
@@ -29,6 +33,9 @@ const PostJob = () => {
   };
 
   const handleRoleChange = (role) => {
+    if (duplicateJob) {
+      setDuplicateJob(null);
+    }
     setFormData(prev => {
       const roles = prev.roles.includes(role)
         ? prev.roles.filter(r => r !== role)
@@ -40,6 +47,7 @@ const PostJob = () => {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError("");
+    setDuplicateJob(null);
     setLoading(true);
 
     if (!formData.title || !formData.company || !formData.description) {
@@ -71,7 +79,29 @@ const PostJob = () => {
       setTimeout(() => navigate("/my-jobs"), 1500);
     } catch (err) {
       console.error("Error posting job:", err);
+      if (err?.response?.status === 409 && err?.response?.data?.duplicateJob) {
+        setDuplicateJob(err.response.data.duplicateJob);
+      }
       const errorMsg = err.response?.data?.message || err.message || "Failed to post job";
+      setError(errorMsg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleRepost = async () => {
+    if (!duplicateJob?._id) return;
+    setError("");
+    setLoading(true);
+    try {
+      await api.post(`/jobs/${duplicateJob._id}/repost`, {
+        expiryDate: formData.expiryDate || undefined,
+        roles: formData.roles
+      });
+      toast.success("Job reposted successfully!");
+      setTimeout(() => navigate("/my-jobs"), 1200);
+    } catch (err) {
+      const errorMsg = err.response?.data?.message || err.message || "Failed to repost job";
       setError(errorMsg);
     } finally {
       setLoading(false);
@@ -100,6 +130,24 @@ const PostJob = () => {
           <div className="card">
             <div className="card-body">
             {error && <div className="alert alert-danger">{error}</div>}
+            {duplicateJob && (
+              <div className="alert alert-warning d-flex align-items-center justify-content-between flex-wrap gap-2">
+                <div>
+                  <div className="fw-semibold">Same job already posted.</div>
+                  <small className="text-muted">
+                    {duplicateJob.title} at {duplicateJob.company}
+                  </small>
+                </div>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-warning"
+                  disabled={loading}
+                  onClick={handleRepost}
+                >
+                  {loading ? "Reposting..." : "Repost Job"}
+                </button>
+              </div>
+            )}
             <form onSubmit={handleSubmit}>
               <div className="mb-3">
                 <label className="form-label">Job Title *</label>

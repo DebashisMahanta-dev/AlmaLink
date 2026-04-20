@@ -17,6 +17,26 @@ const normalizeText = (value = "") =>
 const collectJobText = (job) =>
   normalizeText([job.title, job.company, job.location, job.type, job.description, ...(job.roles || [])].join(" "));
 
+const buildDuplicateSignature = (job = {}) => ({
+  title: normalizeText(job.title),
+  company: normalizeText(job.company),
+  location: normalizeText(job.location),
+  type: normalizeText(job.type),
+  roles: [...(job.roles || [])].map((role) => normalizeText(role)).sort().join("|")
+});
+
+const isSameJobSignature = (jobA, jobB) => {
+  const a = buildDuplicateSignature(jobA);
+  const b = buildDuplicateSignature(jobB);
+  return (
+    a.title === b.title &&
+    a.company === b.company &&
+    a.location === b.location &&
+    a.type === b.type &&
+    a.roles === b.roles
+  );
+};
+
 const scoreJob = (job, skills = []) => {
   const jobText = collectJobText(job);
   const matchedSkills = [];
@@ -171,6 +191,39 @@ router.post("/", requireAuth, requireRole("alumni"), async (req, res) => {
       }
     }
 
+    const now = new Date();
+    const activeJobs = await Job.find({
+      postedBy: req.user._id,
+      $or: [{ expiryDate: { $exists: false } }, { expiryDate: { $gte: now } }]
+    }).sort({ createdAt: -1 });
+
+    const duplicateJob = activeJobs.find((job) =>
+      isSameJobSignature(
+        {
+          title,
+          company,
+          location,
+          type,
+          roles: validRoles
+        },
+        job
+      )
+    );
+
+    if (duplicateJob) {
+      return res.status(409).json({
+        message: "Job already posted with same details",
+        duplicateJob: {
+          _id: duplicateJob._id,
+          title: duplicateJob.title,
+          company: duplicateJob.company,
+          location: duplicateJob.location,
+          type: duplicateJob.type
+        },
+        canRepost: true
+      });
+    }
+
     const job = await Job.create({
       title,
       company,
@@ -186,6 +239,61 @@ router.post("/", requireAuth, requireRole("alumni"), async (req, res) => {
   } catch (err) {
     console.error("Error creating job:", err);
     return res.status(500).json({ message: err.message || "Failed to create job" });
+  }
+});
+
+router.post("/:id/repost", requireAuth, requireRole("alumni"), async (req, res) => {
+  try {
+    if (!req.user.approved) {
+      return res.status(403).json({ message: "Alumni approval required" });
+    }
+
+    const sourceJob = await Job.findById(req.params.id);
+    if (!sourceJob) {
+      return res.status(404).json({ message: "Original job not found" });
+    }
+
+    if (sourceJob.postedBy.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ message: "You can only repost your own jobs" });
+    }
+
+    const { expiryDate, roles } = req.body || {};
+    const validRoles = Array.isArray(roles) && roles.length > 0 ? roles : sourceJob.roles;
+    if (!validRoles.every((role) => ["freshers", "experienced"].includes(role))) {
+      return res.status(400).json({ message: "Invalid role. Valid roles are: freshers, experienced" });
+    }
+
+    let parsedExpiryDate;
+    if (expiryDate) {
+      parsedExpiryDate = new Date(expiryDate);
+      if (Number.isNaN(parsedExpiryDate.getTime())) {
+        return res.status(400).json({ message: "Invalid expiry date" });
+      }
+      if (parsedExpiryDate <= new Date()) {
+        return res.status(400).json({ message: "Expiry date must be in the future" });
+      }
+    } else {
+      parsedExpiryDate = sourceJob.expiryDate;
+    }
+
+    const repostedJob = await Job.create({
+      title: sourceJob.title,
+      company: sourceJob.company,
+      location: sourceJob.location,
+      type: sourceJob.type,
+      description: sourceJob.description,
+      roles: validRoles,
+      expiryDate: parsedExpiryDate,
+      postedBy: req.user._id
+    });
+
+    return res.status(201).json({
+      message: "Job reposted successfully",
+      job: repostedJob
+    });
+  } catch (err) {
+    console.error("Error reposting job:", err);
+    return res.status(500).json({ message: err.message || "Failed to repost job" });
   }
 });
 
