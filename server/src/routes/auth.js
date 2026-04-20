@@ -6,7 +6,7 @@ import { OAuth2Client } from "google-auth-library";
 import { User } from "../models/User.js";
 import { requireAuth } from "../middleware/auth.js";
 import { isValidEmail } from "../utils/validators.js";
-import { sendWelcomeEmail } from "../services/emailService.js";
+import { sendVerificationEmail, sendWelcomeEmail } from "../services/emailService.js";
 
 const router = express.Router();
 
@@ -18,84 +18,249 @@ const buildDefaultPhotoUrl = (name = "User") => {
   return `https://ui-avatars.com/api/?name=${safeName}&background=0D8ABC&color=fff&size=256`;
 };
 
+const EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES = Math.max(
+  1,
+  Number(process.env.EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES || 10)
+);
+
+const createNumericOtp = () => String(Math.floor(100000 + Math.random() * 900000));
+
+const issueSignupVerificationOtp = async (user) => {
+  const otp = createNumericOtp();
+  user.verificationOTP = otp;
+  user.verificationOTPExpiry = new Date(Date.now() + EMAIL_VERIFICATION_OTP_EXPIRY_MINUTES * 60 * 1000);
+  user.verificationToken = null;
+  user.verificationTokenExpiry = null;
+  await user.save();
+
+  const verificationLink = `${process.env.CLIENT_URL || "http://localhost:5173"}/verify-email?email=${encodeURIComponent(
+    user.email
+  )}`;
+  const sent = await sendVerificationEmail(user.email, user.name, otp, verificationLink);
+
+  return { sent, otp };
+};
+
 // Initialize Google OAuth client
 const googleClient = new OAuth2Client(process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET);
 
 router.post("/register", async (req, res) => {
-  const { name, email, password, photoUrl } = req.body;
+  const { name, email, password, photoUrl, role = "student", graduationYear, branch, company, location } = req.body;
   if (!name || !email || !password) {
     return res.status(400).json({ message: "Missing required fields" });
   }
   if (!isValidEmail(email)) {
     return res.status(400).json({ message: "Invalid email" });
   }
-  const existing = await User.findOne({ email: email.toLowerCase() });
-  if (existing) {
+  if (!["student", "alumni"].includes(role)) {
+    return res.status(400).json({ message: "Invalid role" });
+  }
+
+  const normalizedRole = role;
+  const normalizedGraduationYear = String(graduationYear || "").trim();
+  const normalizedBranch = String(branch || "").trim();
+  const normalizedCompany = String(company || "").trim();
+  const normalizedLocation = String(location || "").trim();
+  const currentYear = new Date().getFullYear();
+
+  if (normalizedRole === "alumni") {
+    if (!normalizedGraduationYear || !normalizedBranch || !normalizedCompany || !normalizedLocation) {
+      return res.status(400).json({ message: "Pass out year, branch, current company, and location are required for alumni signup" });
+    }
+    if (!/^\d{4}$/.test(normalizedGraduationYear)) {
+      return res.status(400).json({ message: "Pass out year must be a 4-digit year" });
+    }
+    const passOutYear = Number(normalizedGraduationYear);
+    if (passOutYear < 1950 || passOutYear > currentYear + 1) {
+      return res.status(400).json({ message: "Pass out year is out of valid range" });
+    }
+  }
+
+  const passwordHash = await bcrypt.hash(password, 10);
+  const normalizedEmail = email.toLowerCase();
+  const existing = await User.findOne({ email: normalizedEmail });
+  if (existing?.emailVerified) {
     return res.status(409).json({ message: "User already registered" });
   }
-  
-  const passwordHash = await bcrypt.hash(password, 10);
-  const role = "student";
-  const approved = true;
+
+  const approved = normalizedRole === "student";
   
   const normalizedPhotoUrl =
     typeof photoUrl === "string" && photoUrl.trim() ? photoUrl.trim() : buildDefaultPhotoUrl(name);
 
-  const user = await User.create({
-    name,
-    email: email.toLowerCase(),
-    passwordHash,
-    role,
-    approved,
-    emailVerified: true,
-    onboardingCompleted: false,
-    photoUrl: normalizedPhotoUrl,
-    verificationOTP: null,
-    verificationOTPExpiry: null,
-    verificationToken: null,
-    verificationTokenExpiry: null,
-    studentProfile: {
-      graduationYear: "",
-      branch: "",
-      currentYear: "",
-      college: "Government College of Engineering",
-      country: ""
+  const user = existing || (await User.create({
+        name,
+        email: normalizedEmail,
+        passwordHash,
+        role: normalizedRole,
+        approved,
+        emailVerified: false,
+        onboardingCompleted: false,
+        photoUrl: normalizedPhotoUrl,
+        verificationOTP: null,
+        verificationOTPExpiry: null,
+        verificationToken: null,
+        verificationTokenExpiry: null,
+        studentProfile:
+          normalizedRole === "student"
+            ? {
+                graduationYear: "",
+                branch: "",
+                currentYear: "",
+                college: "Government College of Engineering",
+                country: ""
+              }
+            : undefined,
+        alumniProfile:
+          normalizedRole === "alumni"
+            ? {
+                graduationYear: normalizedGraduationYear,
+                branch: normalizedBranch,
+                company: normalizedCompany,
+                location: normalizedLocation,
+                contact: ""
+              }
+            : undefined
+      }));
+
+  if (existing) {
+    user.name = name;
+    user.passwordHash = passwordHash;
+    user.role = normalizedRole;
+    user.approved = approved;
+    user.emailVerified = false;
+    user.onboardingCompleted = false;
+    user.photoUrl = normalizedPhotoUrl;
+
+    if (normalizedRole === "alumni") {
+      user.alumniProfile = {
+        graduationYear: normalizedGraduationYear,
+        branch: normalizedBranch,
+        company: normalizedCompany,
+        location: normalizedLocation,
+        contact: ""
+      };
+      user.studentProfile = undefined;
+    } else {
+      user.studentProfile = {
+        graduationYear: "",
+        branch: "",
+        currentYear: "",
+        college: "Government College of Engineering",
+        country: ""
+      };
+      user.alumniProfile = undefined;
     }
-  });
+  }
+
+  const { sent } = await issueSignupVerificationOtp(user);
+  if (!sent) {
+    return res.status(503).json({
+      message: "Registration created, but verification email could not be sent. Please try resending OTP.",
+      requiresEmailVerification: true,
+      email: user.email
+    });
+  }
 
   return res.status(201).json({
-    message: "Registration successful.",
-    token: signToken(user._id),
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      approved: user.approved,
-      onboardingCompleted: user.onboardingCompleted
-    }
+    message: "Registration successful. Please verify your email with OTP.",
+    requiresEmailVerification: true,
+    email: user.email
   });
 });
 
 // Development endpoint: Get verification token for testing (only in development)
 router.post("/test-verification-otp", async (req, res) => {
-  return res.status(410).json({ message: "Email verification is temporarily disabled" });
+  if (process.env.NODE_ENV === "production") {
+    return res.status(403).json({ message: "Test OTP endpoint is disabled in production" });
+  }
+
+  const { email } = req.body;
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ message: "Valid email is required" });
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (user.emailVerified) {
+    return res.status(400).json({ message: "Email is already verified" });
+  }
+
+  return res.json({ verificationOTP: user.verificationOTP || null });
 });
 
-// Verify Email
-// Verify Email with OTP
 router.post("/verify-otp", async (req, res) => {
-  return res.status(410).json({ message: "Email verification is temporarily disabled" });
+  const { email, otp } = req.body;
+  if (!email || !otp) {
+    return res.status(400).json({ message: "Email and OTP are required" });
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (user.emailVerified) {
+    return res.json({ message: "Email already verified" });
+  }
+
+  if (!user.verificationOTP || !user.verificationOTPExpiry) {
+    return res.status(400).json({ message: "No active OTP found. Please resend verification OTP." });
+  }
+
+  if (user.verificationOTPExpiry.getTime() < Date.now()) {
+    user.verificationOTP = null;
+    user.verificationOTPExpiry = null;
+    await user.save();
+    return res.status(401).json({ message: "OTP has expired. Please resend verification OTP." });
+  }
+
+  if (String(user.verificationOTP) !== String(otp).trim()) {
+    return res.status(401).json({ message: "Invalid OTP" });
+  }
+
+  user.emailVerified = true;
+  user.verificationOTP = null;
+  user.verificationOTPExpiry = null;
+  user.verificationToken = null;
+  user.verificationTokenExpiry = null;
+  await user.save();
+
+  await sendWelcomeEmail(user.email, user.name);
+
+  return res.json({ message: "Email verified successfully. You can now log in." });
 });
 
 // Verify Email with Token (backward compatibility)
 router.post("/verify-email", async (req, res) => {
-  return res.status(410).json({ message: "Email verification is temporarily disabled" });
+  return res.status(400).json({ message: "Use OTP-based verification endpoint instead." });
 });
 
 // Resend Verification Email with OTP
 router.post("/resend-verification", async (req, res) => {
-  return res.status(410).json({ message: "Email verification is temporarily disabled" });
+  const { email } = req.body;
+  if (!email || !isValidEmail(email)) {
+    return res.status(400).json({ message: "Valid email is required" });
+  }
+
+  const user = await User.findOne({ email: email.toLowerCase() });
+  if (!user) {
+    return res.status(404).json({ message: "User not found" });
+  }
+
+  if (user.emailVerified) {
+    return res.status(400).json({ message: "Email is already verified" });
+  }
+
+  const { sent } = await issueSignupVerificationOtp(user);
+  if (!sent) {
+    return res.status(503).json({ message: "Unable to send verification OTP right now. Please try again later." });
+  }
+
+  return res.json({ message: "Verification OTP sent successfully." });
 });
 
 router.post("/login", async (req, res) => {
@@ -115,6 +280,16 @@ router.post("/login", async (req, res) => {
   if (!valid) {
     return res.status(401).json({ message: "Invalid credentials" });
   }
+
+  if (!user.emailVerified) {
+    await issueSignupVerificationOtp(user);
+    return res.status(403).json({
+      message: "Please verify your email first. We sent a fresh OTP to your email.",
+      requiresEmailVerification: true,
+      email: user.email
+    });
+  }
+
   return res.json({
     token: signToken(user._id),
     user: {

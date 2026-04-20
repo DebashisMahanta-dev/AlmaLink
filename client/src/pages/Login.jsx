@@ -1,7 +1,6 @@
 import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
-import api from "../services/api";
 
 const Login = () => {
   const { login } = useAuth();
@@ -20,7 +19,11 @@ const Login = () => {
       await login(email, password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.response?.data?.message || "Login failed");
+      if (err?.response?.data?.requiresEmailVerification && err?.response?.data?.email) {
+        navigate(`/verify-email?email=${encodeURIComponent(err.response.data.email)}`);
+      } else {
+        setError(err?.response?.data?.message || "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -99,7 +102,6 @@ const Login = () => {
           </div>
         )}
 
-        {/* Login Form */}
         <form onSubmit={handleSubmit}>
           <div className="mb-3">
             <input 

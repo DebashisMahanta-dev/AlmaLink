@@ -31,6 +31,12 @@ const Profile = () => {
   const [myApplications, setMyApplications] = useState([]);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [message, setMessage] = useState("");
+  const [mentorship, setMentorship] = useState({
+    optIn: false,
+    status: "not_enrolled",
+    requestedAt: "",
+    reviewedAt: ""
+  });
 
   useEffect(() => {
     if (user) {
@@ -67,8 +73,36 @@ const Profile = () => {
         achievementsText: achievements.join("\n"),
         resumeUrl: me.resumeUrl || ""
       });
+      setMentorship({
+        optIn: Boolean(me.mentorshipOptIn),
+        status: me.mentorshipStatus || "not_enrolled",
+        requestedAt: me.mentorshipRequestedAt || "",
+        reviewedAt: me.mentorshipReviewedAt || ""
+      });
     } catch (err) {
       console.error("Failed to load profile", err);
+    }
+  };
+
+  const requestMentorshipEnrollment = async () => {
+    try {
+      const res = await api.post("/profile/me/mentorship/enroll");
+      setMessage(res?.data?.message || "Mentorship enrollment requested");
+      await loadProfile();
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setMessage(err?.response?.data?.message || "Failed to request mentorship enrollment");
+    }
+  };
+
+  const withdrawMentorshipEnrollment = async () => {
+    try {
+      const res = await api.delete("/profile/me/mentorship/enroll");
+      setMessage(res?.data?.message || "Mentorship enrollment withdrawn");
+      await loadProfile();
+      setTimeout(() => setMessage(""), 3000);
+    } catch (err) {
+      setMessage(err?.response?.data?.message || "Failed to withdraw mentorship enrollment");
     }
   };
 
@@ -635,6 +669,44 @@ const Profile = () => {
                   </a>
                 )}
               </div>
+
+              {user?.role === "alumni" && (
+                <div className="mt-4 pt-3" style={{ borderTop: "1px solid #e0e0e0" }}>
+                  <h6 className="fw-semibold mb-2">Mentorship Enrollment</h6>
+                  <div className="small text-muted mb-2">
+                    Status:{" "}
+                    <span className="fw-semibold text-dark">
+                      {mentorship.status === "approved"
+                        ? "Approved"
+                        : mentorship.status === "pending"
+                          ? "Pending Admin Approval"
+                          : mentorship.status === "rejected"
+                            ? "Rejected"
+                            : "Not Enrolled"}
+                    </span>
+                  </div>
+                  {mentorship.requestedAt && (
+                    <div className="small text-muted mb-2">
+                      Requested on {new Date(mentorship.requestedAt).toLocaleDateString()}
+                    </div>
+                  )}
+                  {mentorship.reviewedAt && mentorship.status !== "pending" && (
+                    <div className="small text-muted mb-3">
+                      Reviewed on {new Date(mentorship.reviewedAt).toLocaleDateString()}
+                    </div>
+                  )}
+
+                  {mentorship.status === "not_enrolled" || mentorship.status === "rejected" ? (
+                    <button className="btn btn-sm btn-primary" onClick={requestMentorshipEnrollment}>
+                      Enroll for Mentorship
+                    </button>
+                  ) : (
+                    <button className="btn btn-sm btn-outline-secondary" onClick={withdrawMentorshipEnrollment}>
+                      Withdraw Enrollment
+                    </button>
+                  )}
+                </div>
+              )}
 
               {editing && (
                 <div className="d-flex gap-2 mt-4">

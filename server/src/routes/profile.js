@@ -195,4 +195,70 @@ router.post("/me/resume", requireAuth, resumeUpload.single("resume"), async (req
   }
 });
 
+router.post("/me/mentorship/enroll", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role !== "alumni") {
+      return res.status(403).json({ message: "Only alumni can enroll for mentorship" });
+    }
+
+    if (!user.approved) {
+      return res.status(403).json({ message: "Admin approval is required before mentorship enrollment" });
+    }
+
+    user.mentorshipOptIn = true;
+    user.mentorshipStatus = "pending";
+    user.mentorshipRequestedAt = new Date();
+    user.mentorshipReviewedAt = null;
+    await user.save();
+
+    return res.json({
+      message: "Mentorship enrollment request submitted for admin approval",
+      mentorship: {
+        optIn: user.mentorshipOptIn,
+        status: user.mentorshipStatus,
+        requestedAt: user.mentorshipRequestedAt,
+        reviewedAt: user.mentorshipReviewedAt
+      }
+    });
+  } catch (err) {
+    console.error("Error requesting mentorship enrollment:", err);
+    return res.status(500).json({ message: "Failed to submit mentorship enrollment request" });
+  }
+});
+
+router.delete("/me/mentorship/enroll", requireAuth, async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) {
+      return res.status(404).json({ message: "User not found" });
+    }
+
+    if (user.role !== "alumni") {
+      return res.status(403).json({ message: "Only alumni can manage mentorship enrollment" });
+    }
+
+    user.mentorshipOptIn = false;
+    user.mentorshipStatus = "not_enrolled";
+    user.mentorshipRequestedAt = null;
+    user.mentorshipReviewedAt = null;
+    await user.save();
+
+    return res.json({
+      message: "Mentorship enrollment withdrawn",
+      mentorship: {
+        optIn: user.mentorshipOptIn,
+        status: user.mentorshipStatus
+      }
+    });
+  } catch (err) {
+    console.error("Error withdrawing mentorship enrollment:", err);
+    return res.status(500).json({ message: "Failed to withdraw mentorship enrollment" });
+  }
+});
+
 export default router;

@@ -11,7 +11,9 @@ const AdminAuditLogSchema = new mongoose.Schema(
         "demote_admin",
         "update_user_role",
         "delete_user",
-        "delete_job"
+        "delete_job",
+        "approve_mentorship",
+        "reject_mentorship"
       ]
     },
     actor: {

@@ -13,6 +13,17 @@ const ConnectionRequests = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("received");
 
+  const connectionStats = connections.reduce(
+    (acc, connection) => {
+      const role = connection?.connectedUser?.role;
+      acc.total += 1;
+      if (role === "student") acc.students += 1;
+      if (role === "alumni") acc.alumni += 1;
+      return acc;
+    },
+    { total: 0, students: 0, alumni: 0 }
+  );
+
   useEffect(() => {
     loadAllData();
   }, []);
@@ -85,6 +96,27 @@ const ConnectionRequests = () => {
               Connections & Requests
             </h2>
             <p className="text-muted">Manage your connection requests and current connections</p>
+          </div>
+        </div>
+
+        <div className="row g-3 mb-4">
+          <div className="col-md-4">
+            <div className="bg-white rounded p-3 shadow-sm border">
+              <div className="text-muted small">Total Connections</div>
+              <div className="fw-bold fs-4">{connectionStats.total}</div>
+            </div>
+          </div>
+          <div className="col-md-4">
+            <div className="bg-white rounded p-3 shadow-sm border">
+              <div className="text-muted small">Student Connections</div>
+              <div className="fw-bold fs-4">{connectionStats.students}</div>
+            </div>
+          </div>
+          <div className="col-md-4">
+            <div className="bg-white rounded p-3 shadow-sm border">
+              <div className="text-muted small">Alumni Connections</div>
+              <div className="fw-bold fs-4">{connectionStats.alumni}</div>
+            </div>
           </div>
         </div>
 

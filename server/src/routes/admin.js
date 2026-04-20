@@ -132,6 +132,17 @@ router.get("/pending-alumni", requireAuth, requireRole("admin"), async (req, res
   return res.json({ alumni });
 });
 
+router.get("/pending-mentorship", requireAuth, requireRole("admin"), async (req, res) => {
+  const alumni = await User.find({
+    role: "alumni",
+    approved: true,
+    mentorshipOptIn: true,
+    mentorshipStatus: "pending"
+  }).select("name email alumniProfile mentorshipRequestedAt mentorshipStatus");
+
+  return res.json({ alumni });
+});
+
 router.get("/analytics", requireAuth, requireRole("admin"), async (req, res) => {
   try {
     const now = new Date();
@@ -353,6 +364,72 @@ router.patch("/approve/:id", requireAuth, requireRole("admin"), async (req, res)
   });
 
   return res.json({ user });
+});
+
+router.patch("/approve-mentorship/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  const user = await User.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      role: "alumni",
+      approved: true,
+      mentorshipOptIn: true,
+      mentorshipStatus: "pending"
+    },
+    {
+      mentorshipStatus: "approved",
+      mentorshipReviewedAt: new Date()
+    },
+    { new: true }
+  ).select("name email role mentorshipStatus mentorshipReviewedAt");
+
+  if (!user) return res.status(404).json({ message: "Pending mentorship request not found" });
+
+  await writeAuditLog({
+    action: "approve_mentorship",
+    actor: req.user,
+    target: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    },
+    details: "Mentorship enrollment approved"
+  });
+
+  return res.json({ message: "Mentorship request approved", user });
+});
+
+router.patch("/reject-mentorship/:id", requireAuth, requireRole("admin"), async (req, res) => {
+  const user = await User.findOneAndUpdate(
+    {
+      _id: req.params.id,
+      role: "alumni",
+      approved: true,
+      mentorshipOptIn: true,
+      mentorshipStatus: "pending"
+    },
+    {
+      mentorshipStatus: "rejected",
+      mentorshipReviewedAt: new Date()
+    },
+    { new: true }
+  ).select("name email role mentorshipStatus mentorshipReviewedAt");
+
+  if (!user) return res.status(404).json({ message: "Pending mentorship request not found" });
+
+  await writeAuditLog({
+    action: "reject_mentorship",
+    actor: req.user,
+    target: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    },
+    details: "Mentorship enrollment rejected"
+  });
+
+  return res.json({ message: "Mentorship request rejected", user });
 });
 
 router.delete("/jobs/:id", requireAuth, requireRole("admin"), async (req, res) => {

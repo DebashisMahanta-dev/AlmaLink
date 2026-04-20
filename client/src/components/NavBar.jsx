@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import "./Navbar.css";
+import api from "../services/api";
 import { FaGraduationCap, FaArrowRightToBracket, FaUserPlus, FaBars, FaXmark } from "react-icons/fa6";
 import {
   Home,
@@ -22,6 +23,7 @@ const NavBar = () => {
   const location = useLocation();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [profileDropdown, setProfileDropdown] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
 
   const userAvatar = user?.photoUrl || `https://ui-avatars.com/api/?name=${encodeURIComponent(user?.name || "User")}&background=0D8ABC&color=fff&size=128`;
   const hasCustomPhoto = Boolean(user?.photoUrl) && !user.photoUrl.includes("ui-avatars.com");
@@ -50,6 +52,58 @@ const NavBar = () => {
     logout();
     closeMenus();
   };
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const loadNotifications = async () => {
+      if (!user) {
+        if (isMounted) setNotificationCount(0);
+        return;
+      }
+
+      try {
+        if (user.role === "admin") {
+          const [pendingAlumniRes, pendingMentorshipRes] = await Promise.all([
+            api.get("/admin/pending-alumni"),
+            api.get("/admin/pending-mentorship")
+          ]);
+          if (!isMounted) return;
+          const pendingAlumni = pendingAlumniRes.data?.alumni?.length || 0;
+          const pendingMentorship = pendingMentorshipRes.data?.alumni?.length || 0;
+          setNotificationCount(pendingAlumni + pendingMentorship);
+          return;
+        }
+
+        if (user.role === "alumni") {
+          const [pendingRequestsRes, profileRes] = await Promise.all([
+            api.get("/connections/requests/pending"),
+            api.get("/profile/me")
+          ]);
+          if (!isMounted) return;
+          const connectionPending = pendingRequestsRes.data?.requests?.length || 0;
+          const mentorshipStatus = profileRes.data?.user?.mentorshipStatus || "not_enrolled";
+          const mentorshipPendingBadge = mentorshipStatus === "pending" ? 1 : 0;
+          setNotificationCount(connectionPending + mentorshipPendingBadge);
+          return;
+        }
+
+        const pendingRequestsRes = await api.get("/connections/requests/pending");
+        if (!isMounted) return;
+        setNotificationCount(pendingRequestsRes.data?.requests?.length || 0);
+      } catch {
+        if (isMounted) {
+          setNotificationCount(0);
+        }
+      }
+    };
+
+    loadNotifications();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [user]);
 
   const publicNavLinks = [{ icon: <Users />, label: "About", href: "/about" }];
 
@@ -225,7 +279,7 @@ const NavBar = () => {
   if (user.role === "student") {
     return renderModernNavbar({
       variant: "student",
-      notificationCount: 3,
+      notificationCount,
       links: [
         { icon: <Home size={16} />, label: "Home", href: "/" },
         { icon: <Users size={16} />, label: "Alumni", href: "/alumni" },
@@ -246,7 +300,7 @@ const NavBar = () => {
   if (user.role === "alumni") {
     return renderModernNavbar({
       variant: "alumni",
-      notificationCount: 2,
+      notificationCount,
       links: [
         { icon: <Home size={16} />, label: "Home", href: "/" },
         { icon: <Users size={16} />, label: "Alumni", href: "/alumni" },
@@ -266,7 +320,7 @@ const NavBar = () => {
   if (user.role === "admin") {
     return renderModernNavbar({
       variant: "admin",
-      notificationCount: 5,
+      notificationCount,
       homeHref: "/admin",
       links: [
         { icon: <Home size={16} />, label: "Analytics", href: "/admin" },

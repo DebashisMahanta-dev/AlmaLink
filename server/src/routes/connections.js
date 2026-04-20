@@ -14,8 +14,8 @@ router.get("/", requireAuth, async (req, res) => {
         { receiver: req.user._id, status: "accepted" }
       ]
     })
-      .populate("sender", "name email photoUrl alumniProfile studentProfile")
-      .populate("receiver", "name email photoUrl alumniProfile studentProfile")
+      .populate("sender", "name email photoUrl role alumniProfile studentProfile")
+      .populate("receiver", "name email photoUrl role alumniProfile studentProfile")
       .sort({ updatedAt: -1 });
 
     // Format response to always show the "other" user

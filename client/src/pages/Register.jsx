@@ -8,6 +8,11 @@ const Register = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [photoUrl, setPhotoUrl] = useState("");
+  const [role, setRole] = useState("student");
+  const [graduationYear, setGraduationYear] = useState("");
+  const [branch, setBranch] = useState("");
+  const [company, setCompany] = useState("");
+  const [location, setLocation] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
@@ -17,13 +22,22 @@ const Register = () => {
     setLoading(true);
 
     try {
-      await register({
+      const data = await register({
         name,
         email,
         password,
-        photoUrl
+        photoUrl,
+        role,
+        graduationYear: role === "alumni" ? graduationYear : "",
+        branch: role === "alumni" ? branch : "",
+        company: role === "alumni" ? company : "",
+        location: role === "alumni" ? location : ""
       });
-      window.location.href = "/onboarding";
+      if (data?.requiresEmailVerification && data?.email) {
+        window.location.href = `/verify-email?email=${encodeURIComponent(data.email)}`;
+      } else {
+        window.location.href = "/onboarding";
+      }
     } catch (err) {
       if (err?.response?.status === 409) {
         setError("User already registered");
@@ -123,6 +137,73 @@ const Register = () => {
             />
             <small className="text-muted">You can also upload a photo in onboarding.</small>
           </div>
+
+          <div className="mb-3">
+            <select
+              className="form-control form-control-lg"
+              value={role}
+              onChange={(e) => setRole(e.target.value)}
+              required
+              style={{ borderRadius: "6px", padding: "12px 15px" }}
+            >
+              <option value="student">Student</option>
+              <option value="alumni">Alumni</option>
+            </select>
+          </div>
+
+          {role === "alumni" && (
+            <>
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Pass Out Year (e.g., 2022)"
+                  value={graduationYear}
+                  onChange={(e) => setGraduationYear(e.target.value.replace(/\D/g, "").slice(0, 4))}
+                  inputMode="numeric"
+                  pattern="[0-9]{4}"
+                  required
+                  style={{ borderRadius: "6px", padding: "12px 15px" }}
+                />
+              </div>
+
+              <div className="mb-4">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Branch (e.g., Computer Engineering)"
+                  value={branch}
+                  onChange={(e) => setBranch(e.target.value)}
+                  required
+                  style={{ borderRadius: "6px", padding: "12px 15px" }}
+                />
+              </div>
+
+              <div className="mb-3">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Current Company"
+                  value={company}
+                  onChange={(e) => setCompany(e.target.value)}
+                  required
+                  style={{ borderRadius: "6px", padding: "12px 15px" }}
+                />
+              </div>
+
+              <div className="mb-4">
+                <input
+                  type="text"
+                  className="form-control form-control-lg"
+                  placeholder="Current Location"
+                  value={location}
+                  onChange={(e) => setLocation(e.target.value)}
+                  required
+                  style={{ borderRadius: "6px", padding: "12px 15px" }}
+                />
+              </div>
+            </>
+          )}
 
           <button
             type="submit"

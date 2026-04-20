@@ -1,30 +1,89 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
 import { Calendar, MapPin, Clock, Users, AlertCircle } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { useToast } from "../context/ToastContext";
 
 const Events = () => {
+  const { user } = useAuth();
+  const toast = useToast();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [activeFormEventId, setActiveFormEventId] = useState("");
+  const [submittingEventId, setSubmittingEventId] = useState("");
+  const [formState, setFormState] = useState({
+    fullName: "",
+    email: "",
+    phone: "",
+    note: ""
+  });
+
+  const loadEvents = async () => {
+    setLoading(true);
+    setError("");
+    try {
+      const res = await api.get("/events");
+      setEvents(res.data.events || []);
+    } catch (err) {
+      console.error("Failed to load events", err);
+      setError(err?.response?.data?.message || "Failed to load events");
+      setEvents([]);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const loadEvents = async () => {
-      setLoading(true);
-      setError("");
-      try {
-        const res = await api.get("/events");
-        setEvents(res.data.events || []);
-      } catch (err) {
-        console.error("Failed to load events", err);
-        setError(err?.response?.data?.message || "Failed to load events");
-        setEvents([]);
-      } finally {
-        setLoading(false);
-      }
-    };
-
     loadEvents();
   }, []);
+
+  const applyEventUpdate = (updatedEvent) => {
+    setEvents((prev) =>
+      prev.map((entry) => (entry._id === updatedEvent._id ? { ...entry, ...updatedEvent } : entry))
+    );
+  };
+
+  const openRegisterForm = (event) => {
+    setActiveFormEventId(event._id);
+    setFormState({
+      fullName: user?.name || "",
+      email: user?.email || "",
+      phone: "",
+      note: ""
+    });
+  };
+
+  const handleRegister = async (eventId) => {
+    setSubmittingEventId(eventId);
+    try {
+      const res = await api.post(`/events/${eventId}/register`, formState);
+      if (res?.data?.event) {
+        applyEventUpdate(res.data.event);
+      }
+      toast.success(res?.data?.message || "Registered successfully");
+      setActiveFormEventId("");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to register for event");
+    } finally {
+      setSubmittingEventId("");
+    }
+  };
+
+  const handleUnregister = async (eventId) => {
+    setSubmittingEventId(eventId);
+    try {
+      const res = await api.delete(`/events/${eventId}/register`);
+      if (res?.data?.event) {
+        applyEventUpdate(res.data.event);
+      }
+      toast.info(res?.data?.message || "Registration cancelled");
+    } catch (err) {
+      toast.error(err?.response?.data?.message || "Failed to cancel registration");
+    } finally {
+      setSubmittingEventId("");
+    }
+  };
 
   return (
     <div className="container py-5">
@@ -95,9 +154,86 @@ const Events = () => {
                       <small>{event.attendingCount || 0} attending</small>
                     </div>
 
-                    <button className="btn btn-primary w-100" type="button">
-                      Register
-                    </button>
+                    {event.isRegistered ? (
+                      <div className="d-grid gap-2">
+                        <button className="btn btn-success w-100" type="button" disabled>
+                          Registered
+                        </button>
+                        <button
+                          className="btn btn-outline-danger w-100"
+                          type="button"
+                          disabled={submittingEventId === event._id}
+                          onClick={() => handleUnregister(event._id)}
+                        >
+                          {submittingEventId === event._id ? "Cancelling..." : "Cancel Registration"}
+                        </button>
+                      </div>
+                    ) : activeFormEventId === event._id ? (
+                      <div className="border rounded-3 p-3 bg-light">
+                        <div className="mb-2">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Full name"
+                            value={formState.fullName}
+                            onChange={(e) => setFormState((prev) => ({ ...prev, fullName: e.target.value }))}
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <input
+                            type="email"
+                            className="form-control"
+                            placeholder="Email"
+                            value={formState.email}
+                            onChange={(e) => setFormState((prev) => ({ ...prev, email: e.target.value }))}
+                          />
+                        </div>
+                        <div className="mb-2">
+                          <input
+                            type="text"
+                            className="form-control"
+                            placeholder="Phone (optional)"
+                            value={formState.phone}
+                            onChange={(e) => setFormState((prev) => ({ ...prev, phone: e.target.value }))}
+                          />
+                        </div>
+                        <div className="mb-3">
+                          <textarea
+                            className="form-control"
+                            rows={2}
+                            placeholder="Note (optional)"
+                            value={formState.note}
+                            onChange={(e) => setFormState((prev) => ({ ...prev, note: e.target.value }))}
+                          />
+                        </div>
+                        <div className="d-flex gap-2">
+                          <button
+                            className="btn btn-primary flex-fill"
+                            type="button"
+                            disabled={
+                              submittingEventId === event._id ||
+                              !formState.fullName.trim() ||
+                              !formState.email.trim()
+                            }
+                            onClick={() => handleRegister(event._id)}
+                          >
+                            {submittingEventId === event._id ? "Submitting..." : "Submit Registration"}
+                          </button>
+                          <button
+                            className="btn btn-outline-secondary"
+                            type="button"
+                            disabled={submittingEventId === event._id}
+                            onClick={() => setActiveFormEventId("")}
+                          >
+                            Cancel
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <button className="btn btn-primary w-100" type="button" onClick={() => openRegisterForm(event)}>
+                        Register
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>

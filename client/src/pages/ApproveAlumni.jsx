@@ -5,6 +5,7 @@ import { useToast } from "../context/ToastContext";
 const ApproveAlumni = () => {
   const toast = useToast();
   const [pendingAlumni, setPendingAlumni] = useState([]);
+  const [pendingMentorship, setPendingMentorship] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
   const [busyUserId, setBusyUserId] = useState("");
@@ -13,10 +14,14 @@ const ApproveAlumni = () => {
     setLoading(true);
     setError("");
     try {
-      const res = await api.get("/admin/pending-alumni");
-      setPendingAlumni(res.data.alumni || []);
+      const [alumniRes, mentorshipRes] = await Promise.all([
+        api.get("/admin/pending-alumni"),
+        api.get("/admin/pending-mentorship")
+      ]);
+      setPendingAlumni(alumniRes.data.alumni || []);
+      setPendingMentorship(mentorshipRes.data.alumni || []);
     } catch (err) {
-      setError(err?.response?.data?.message || "Failed to load pending alumni");
+      setError(err?.response?.data?.message || "Failed to load pending requests");
     } finally {
       setLoading(false);
     }
@@ -35,6 +40,34 @@ const ApproveAlumni = () => {
       await loadPendingAlumni();
     } catch (err) {
       setError(err?.response?.data?.message || "Failed to approve alumni");
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
+  const approveMentorship = async (targetUser) => {
+    setBusyUserId(targetUser._id);
+    setError("");
+    try {
+      const res = await api.patch(`/admin/approve-mentorship/${targetUser._id}`);
+      toast.success(res.data.message || "Mentorship approved");
+      await loadPendingAlumni();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to approve mentorship");
+    } finally {
+      setBusyUserId("");
+    }
+  };
+
+  const rejectMentorship = async (targetUser) => {
+    setBusyUserId(targetUser._id);
+    setError("");
+    try {
+      const res = await api.patch(`/admin/reject-mentorship/${targetUser._id}`);
+      toast.success(res.data.message || "Mentorship rejected");
+      await loadPendingAlumni();
+    } catch (err) {
+      setError(err?.response?.data?.message || "Failed to reject mentorship");
     } finally {
       setBusyUserId("");
     }
@@ -127,6 +160,76 @@ const ApproveAlumni = () => {
                             >
                               {isBusy ? "Approving..." : "Approve"}
                             </button>
+                          </td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="card border-0 shadow-sm rounded-4 mt-4">
+          <div className="card-body p-4 p-md-5">
+            <div className="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+              <h5 className="mb-0 fw-bold">Pending Mentorship Enrollments</h5>
+              <span className="badge rounded-pill text-dark px-3 py-2" style={{ background: "#dff7e8" }}>
+                {pendingMentorship.length} awaiting review
+              </span>
+            </div>
+
+            {loading ? (
+              <div className="text-center py-4 text-muted">Loading pending mentorship requests...</div>
+            ) : pendingMentorship.length === 0 ? (
+              <div className="text-center py-4 text-muted">
+                No alumni mentorship enrollment requests are pending right now.
+              </div>
+            ) : (
+              <div className="table-responsive">
+                <table className="table align-middle">
+                  <thead>
+                    <tr>
+                      <th>Name</th>
+                      <th>Email</th>
+                      <th>Branch</th>
+                      <th>Company</th>
+                      <th>Requested On</th>
+                      <th className="text-end">Action</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {pendingMentorship.map((entry) => {
+                      const isBusy = busyUserId === entry._id;
+                      return (
+                        <tr key={entry._id}>
+                          <td className="fw-semibold">{entry.name}</td>
+                          <td>{entry.email}</td>
+                          <td>{entry.alumniProfile?.branch || "-"}</td>
+                          <td>{entry.alumniProfile?.company || "-"}</td>
+                          <td>
+                            {entry.mentorshipRequestedAt
+                              ? new Date(entry.mentorshipRequestedAt).toLocaleDateString()
+                              : "-"}
+                          </td>
+                          <td className="text-end">
+                            <div className="d-inline-flex gap-2">
+                              <button
+                                className="btn btn-success rounded-pill px-3"
+                                disabled={isBusy}
+                                onClick={() => approveMentorship(entry)}
+                              >
+                                {isBusy ? "..." : "Approve"}
+                              </button>
+                              <button
+                                className="btn btn-outline-danger rounded-pill px-3"
+                                disabled={isBusy}
+                                onClick={() => rejectMentorship(entry)}
+                              >
+                                {isBusy ? "..." : "Reject"}
+                              </button>
+                            </div>
                           </td>
                         </tr>
                       );

@@ -18,7 +18,12 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
     name: "",
     email: "",
     password: "",
-    photoUrl: ""
+    photoUrl: "",
+    role: "student",
+    graduationYear: "",
+    branch: "",
+    company: "",
+    location: ""
   });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -93,7 +98,11 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
       await login(loginForm.email, loginForm.password);
       navigate("/dashboard");
     } catch (err) {
-      setError(err?.response?.data?.message || "Login failed");
+      if (err?.response?.data?.requiresEmailVerification && err?.response?.data?.email) {
+        navigate(`/verify-email?email=${encodeURIComponent(err.response.data.email)}`);
+      } else {
+        setError(err?.response?.data?.message || "Login failed");
+      }
     } finally {
       setLoading(false);
     }
@@ -105,8 +114,12 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
     setLoading(true);
 
     try {
-      await register(registerForm);
-      navigate("/onboarding");
+      const data = await register(registerForm);
+      if (data?.requiresEmailVerification && data?.email) {
+        navigate(`/verify-email?email=${encodeURIComponent(data.email)}`);
+      } else {
+        navigate("/onboarding");
+      }
     } catch (err) {
       if (err?.response?.status === 409) {
         setError("User already registered");
@@ -266,6 +279,59 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
               value={registerForm.photoUrl}
               onChange={(event) => setRegisterForm((prev) => ({ ...prev, photoUrl: event.target.value }))}
             />
+            <select
+              className="auth-modal-input"
+              value={registerForm.role}
+              onChange={(event) => setRegisterForm((prev) => ({ ...prev, role: event.target.value }))}
+              required
+            >
+              <option value="student">Student</option>
+              <option value="alumni">Alumni</option>
+            </select>
+
+            {registerForm.role === "alumni" && (
+              <>
+                <input
+                  type="text"
+                  className="auth-modal-input"
+                  placeholder="Pass Out Year (e.g., 2022)"
+                  value={registerForm.graduationYear}
+                  onChange={(event) =>
+                    setRegisterForm((prev) => ({
+                      ...prev,
+                      graduationYear: event.target.value.replace(/\D/g, "").slice(0, 4)
+                    }))
+                  }
+                  inputMode="numeric"
+                  pattern="[0-9]{4}"
+                  required
+                />
+                <input
+                  type="text"
+                  className="auth-modal-input"
+                  placeholder="Branch (e.g., Computer Engineering)"
+                  value={registerForm.branch}
+                  onChange={(event) => setRegisterForm((prev) => ({ ...prev, branch: event.target.value }))}
+                  required
+                />
+                <input
+                  type="text"
+                  className="auth-modal-input"
+                  placeholder="Current Company"
+                  value={registerForm.company}
+                  onChange={(event) => setRegisterForm((prev) => ({ ...prev, company: event.target.value }))}
+                  required
+                />
+                <input
+                  type="text"
+                  className="auth-modal-input"
+                  placeholder="Current Location"
+                  value={registerForm.location}
+                  onChange={(event) => setRegisterForm((prev) => ({ ...prev, location: event.target.value }))}
+                  required
+                />
+              </>
+            )}
             <p className="auth-modal-help-text">You can also upload a photo in onboarding.</p>
 
             <button type="submit" className="auth-modal-primary-button auth-modal-primary-button--register" disabled={loading}>
