@@ -30,6 +30,7 @@ const Profile = () => {
   const [myJobs, setMyJobs] = useState([]);
   const [myApplications, setMyApplications] = useState([]);
   const [recommendedJobs, setRecommendedJobs] = useState([]);
+  const [connectionCount, setConnectionCount] = useState(0);
   const [message, setMessage] = useState("");
   const [mentorship, setMentorship] = useState({
     optIn: false,
@@ -41,6 +42,7 @@ const Profile = () => {
   useEffect(() => {
     if (user) {
       loadProfile();
+      loadConnectionCount();
       loadMyJobs();
       loadMyApplications();
       loadRecommendedJobs();
@@ -139,6 +141,21 @@ const Profile = () => {
     if (file) {
       setProfilePhoto(file);
       setProfileData({ ...profileData, photoUrl: URL.createObjectURL(file) });
+    }
+  };
+
+  const loadConnectionCount = async () => {
+    if (user?.role !== "student") {
+      setConnectionCount(0);
+      return;
+    }
+
+    try {
+      const res = await api.get("/connections");
+      setConnectionCount(Array.isArray(res.data?.connections) ? res.data.connections.length : 0);
+    } catch (err) {
+      console.error("Failed to load connection count", err);
+      setConnectionCount(0);
     }
   };
 
@@ -532,6 +549,18 @@ const Profile = () => {
                     <div className="fw-semibold small">{profileData.email}</div>
                   </div>
                 </div>
+
+                {user?.role === "student" && (
+                  <div className="d-flex align-items-start mt-3">
+                    <div className="me-2 mt-1 text-muted fw-bold" style={{ width: "18px", textAlign: "center" }}>
+                      #
+                    </div>
+                    <div className="flex-grow-1">
+                      <small className="text-muted d-block">Connections</small>
+                      <div className="fw-semibold">{connectionCount}</div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               {/* Bio */}

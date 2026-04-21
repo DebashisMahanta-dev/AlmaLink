@@ -9,6 +9,7 @@ import { isValidEmail } from "../utils/validators.js";
 import { sendVerificationEmail, sendWelcomeEmail } from "../services/emailService.js";
 
 const router = express.Router();
+const isProduction = process.env.NODE_ENV === "production";
 
 const signToken = (userId) =>
   jwt.sign({ sub: userId }, process.env.JWT_SECRET, { expiresIn: "7d" });
@@ -154,7 +155,7 @@ router.post("/register", async (req, res) => {
   }
 
   const { sent } = await issueSignupVerificationOtp(user);
-  if (!sent) {
+  if (!sent && isProduction) {
     return res.status(503).json({
       message: "Registration created, but verification email could not be sent. Please try resending OTP.",
       requiresEmailVerification: true,
@@ -163,7 +164,9 @@ router.post("/register", async (req, res) => {
   }
 
   return res.status(201).json({
-    message: "Registration successful. Please verify your email with OTP.",
+    message: sent
+      ? "Registration successful. Please verify your email with OTP."
+      : "Registration successful. Email delivery is not configured, but your OTP was generated. Use the verification page to continue.",
     requiresEmailVerification: true,
     email: user.email
   });
@@ -256,11 +259,15 @@ router.post("/resend-verification", async (req, res) => {
   }
 
   const { sent } = await issueSignupVerificationOtp(user);
-  if (!sent) {
+  if (!sent && isProduction) {
     return res.status(503).json({ message: "Unable to send verification OTP right now. Please try again later." });
   }
 
-  return res.json({ message: "Verification OTP sent successfully." });
+  return res.json({
+    message: sent
+      ? "Verification OTP sent successfully."
+      : "Email delivery is not configured, but a new OTP was generated."
+  });
 });
 
 router.post("/login", async (req, res) => {
@@ -282,9 +289,11 @@ router.post("/login", async (req, res) => {
   }
 
   if (!user.emailVerified) {
-    await issueSignupVerificationOtp(user);
+    const { sent } = await issueSignupVerificationOtp(user);
     return res.status(403).json({
-      message: "Please verify your email first. We sent a fresh OTP to your email.",
+      message: sent
+        ? "Please verify your email first. We sent a fresh OTP to your email."
+        : "Please verify your email first. Email delivery is not configured, but a fresh OTP was generated.",
       requiresEmailVerification: true,
       email: user.email
     });

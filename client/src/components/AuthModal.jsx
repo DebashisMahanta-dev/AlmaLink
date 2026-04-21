@@ -121,7 +121,9 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
         navigate("/onboarding");
       }
     } catch (err) {
-      if (err?.response?.status === 409) {
+      if (err?.response?.data?.requiresEmailVerification && err?.response?.data?.email) {
+        navigate(`/verify-email?email=${encodeURIComponent(err.response.data.email)}`);
+      } else if (err?.response?.status === 409) {
         setError("User already registered");
       } else {
         setError(err?.response?.data?.message || "Registration failed");

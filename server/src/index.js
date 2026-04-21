@@ -19,7 +19,9 @@ import { startJobExpiryCleanup } from "./services/jobExpiryService.js";
 import { errorHandler } from "./middleware/error.js";
 import { initSocketServer } from "./socket.js";
 
-dotenv.config();
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+dotenv.config({ path: path.resolve(__dirname, "..", ".env") });
 
 const app = express();
 const httpServer = createServer(app);
@@ -31,8 +33,6 @@ app.use(cors({ origin: ALLOWED_ORIGINS }));
 app.use(express.json({ limit: "25mb" }));
 app.use(morgan("dev"));
 
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
 app.use("/uploads", express.static(path.join(__dirname, "..", "uploads")));
 
 app.get("/api/health", (req, res) => res.json({ status: "ok" }));

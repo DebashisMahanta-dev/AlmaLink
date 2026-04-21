@@ -39,7 +39,9 @@ const Register = () => {
         window.location.href = "/onboarding";
       }
     } catch (err) {
-      if (err?.response?.status === 409) {
+      if (err?.response?.data?.requiresEmailVerification && err?.response?.data?.email) {
+        window.location.href = `/verify-email?email=${encodeURIComponent(err.response.data.email)}`;
+      } else if (err?.response?.status === 409) {
         setError("User already registered");
       } else {
         setError(err?.response?.data?.message || "Registration failed");
