@@ -2,8 +2,11 @@ import nodemailer from "nodemailer";
 
 const RESEND_API_URL = "https://api.resend.com/emails";
 
-const fromAddress = process.env.RESEND_FROM || process.env.EMAIL_FROM || "AlmaLink <noreply@almalink.com>";
-const resendApiKey = process.env.RESEND_API_KEY || "";
+const getEmailConfig = () => ({
+  fromAddress: process.env.RESEND_FROM || process.env.EMAIL_FROM || "AlmaLink <noreply@almalink.com>",
+  resendApiKey: process.env.RESEND_API_KEY || "",
+  forcedRecipient: String(process.env.TEST_EMAIL_REDIRECT_TO || "").trim()
+});
 
 const htmlWrapper = (title, body) => `
   <div style="font-family: Arial, sans-serif; background: #f6f9fc; padding: 24px;">
@@ -27,17 +30,54 @@ const buildLinkButton = (href, label) => `
   </div>
 `;
 
+const normalizeRecipients = (to) => {
+  if (Array.isArray(to)) {
+    return to;
+  }
+  if (typeof to === "string") {
+    return to
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+  }
+  return [];
+};
+
+const applyTestRecipientRedirect = ({ to, subject, html, text }) => {
+  const { forcedRecipient } = getEmailConfig();
+  if (!forcedRecipient) {
+    return { to, subject, html, text };
+  }
+
+  const originalRecipients = normalizeRecipients(to);
+  const recipientNote = originalRecipients.length ? originalRecipients.join(", ") : "unknown recipient";
+
+  return {
+    to: forcedRecipient,
+    subject: `[Redirected] ${subject}`,
+    html: `
+      <p style="font-size:13px;color:#6b7280;margin:0 0 16px;">
+        Original recipient: <strong>${recipientNote}</strong>
+      </p>
+      ${html}
+    `,
+    text: `Original recipient: ${recipientNote}\n\n${text || ""}`
+  };
+};
+
 const sendViaResend = async ({ to, subject, html, text, bcc }) => {
+  const { resendApiKey, fromAddress } = getEmailConfig();
   if (!resendApiKey) {
     return false;
   }
 
+  const outgoing = applyTestRecipientRedirect({ to, subject, html, text });
   const payload = {
     from: fromAddress,
-    to,
-    subject,
-    html,
-    text
+    to: outgoing.to,
+    subject: outgoing.subject,
+    html: outgoing.html,
+    text: outgoing.text
   };
 
   if (bcc?.length) {
@@ -61,30 +101,32 @@ const sendViaResend = async ({ to, subject, html, text, bcc }) => {
   return true;
 };
 
-const fallbackTransporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST || "smtp.gmail.com",
-  port: process.env.SMTP_PORT || 587,
-  secure: process.env.SMTP_SECURE === "true",
-  auth: process.env.SMTP_USER
-    ? {
-        user: process.env.SMTP_USER,
-        pass: process.env.SMTP_PASS || ""
-      }
-    : undefined
-});
-
 const sendFallbackEmail = async ({ to, subject, html, text, bcc }) => {
   if (!process.env.SMTP_USER && !process.env.SMTP_PASS) {
     return false;
   }
 
+  const { fromAddress } = getEmailConfig();
+  const fallbackTransporter = nodemailer.createTransport({
+    host: process.env.SMTP_HOST || "smtp.gmail.com",
+    port: process.env.SMTP_PORT || 587,
+    secure: process.env.SMTP_SECURE === "true",
+    auth: process.env.SMTP_USER
+      ? {
+          user: process.env.SMTP_USER,
+          pass: process.env.SMTP_PASS || ""
+        }
+      : undefined
+  });
+
+  const outgoing = applyTestRecipientRedirect({ to, subject, html, text });
   await fallbackTransporter.sendMail({
     from: process.env.SMTP_FROM || process.env.SMTP_USER || fromAddress,
-    to,
+    to: outgoing.to,
     bcc: bcc?.length ? bcc.join(", ") : undefined,
-    subject,
-    html,
-    text
+    subject: outgoing.subject,
+    html: outgoing.html,
+    text: outgoing.text
   });
 
   return true;

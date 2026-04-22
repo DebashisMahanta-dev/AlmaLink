@@ -880,27 +880,22 @@ const Dashboard = () => {
         </aside>
       </div>
 
-      <footer className="bg-white border-top mt-5" style={{ borderColor: "#e0e0e0" }}>
-        <div className="container py-5">
-          <div className="row mb-4">
-            <div className="col-md-6">
-              <div className="d-flex gap-4 flex-wrap">
-                <Link to="/about" className="text-decoration-none text-muted small">About</Link>
-                <a href="mailto:support@alumnconnect.com" className="text-decoration-none text-muted small">Contact</a>
-                <Link to="/privacy-policy" className="text-decoration-none text-muted small">Privacy</Link>
-                <Link to="/terms-of-service" className="text-decoration-none text-muted small">Terms</Link>
-              </div>
+      <footer className="student-footer mt-5">
+        <div className="container student-footer__container">
+          <div className="student-footer__top">
+            <div className="student-footer__links">
+              <Link to="/about">About</Link>
+              <a href="mailto:support@alumnconnect.com">Contact</a>
+              <Link to="/privacy-policy">Privacy</Link>
+              <Link to="/terms-of-service">Terms</Link>
             </div>
-            <div className="col-md-6 text-end">
-              <div className="d-flex gap-3 justify-content-end">
-                <a href="https://github.com" target="_blank" rel="noreferrer" className="text-muted">GitHub</a>
-                <a href="https://twitter.com" target="_blank" rel="noreferrer" className="text-muted">Twitter</a>
-              </div>
+            <div className="student-footer__socials">
+              <a href="https://github.com" target="_blank" rel="noreferrer">GitHub</a>
+              <a href="https://twitter.com" target="_blank" rel="noreferrer">Twitter</a>
             </div>
           </div>
-          <div className="text-center text-muted small border-top pt-3">
-            <p>&copy; 2026 Alumni Connect</p>
-          </div>
+          <div className="student-footer__divider" />
+          <p className="student-footer__copyright">&copy; 2026 Alumni Connect</p>
         </div>
       </footer>
 
