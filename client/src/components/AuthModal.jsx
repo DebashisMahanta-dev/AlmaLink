@@ -89,6 +89,18 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
     }
   };
 
+  const handleLinkedInLogin = () => {
+    setError("");
+    try {
+      const clientId = import.meta.env.VITE_LINKEDIN_CLIENT_ID;
+      const redirectUri = `${window.location.origin}/auth/linkedin/callback`;
+      const scope = "openid profile email";
+      window.location.href = `https://www.linkedin.com/oauth/v2/authorization?response_type=code&client_id=${clientId}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&state=${Math.random().toString(36).substring(7)}`;
+    } catch {
+      setError("LinkedIn login failed. Please try again.");
+    }
+  };
+
   const submitLogin = async (event) => {
     event.preventDefault();
     setError("");
@@ -224,6 +236,9 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
               </button>
               <button type="button" className="auth-modal-social-button" onClick={handleGitHubLogin} disabled={loading}>
                 GitHub
+              </button>
+              <button type="button" className="auth-modal-social-button" onClick={handleLinkedInLogin} disabled={loading}>
+                LinkedIn
               </button>
             </div>
 

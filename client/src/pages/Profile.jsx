@@ -18,6 +18,7 @@ const Profile = () => {
     email: "",
     photoUrl: "",
     bannerUrl: "",
+    linkedinUrl: "",
     skillsText: "",
     interestsText: "",
     projectsText: "",
@@ -69,6 +70,7 @@ const Profile = () => {
         email: me.email || "",
         photoUrl: me.photoUrl || `https://i.pravatar.cc/200?u=${me.email}`,
         bannerUrl: me.bannerUrl || "",
+        linkedinUrl: me.linkedinUrl || "",
         skillsText: skills.join("\n"),
         interestsText: interests.join("\n"),
         projectsText: projects.join("\n"),
@@ -237,6 +239,7 @@ const Profile = () => {
       await api.patch("/profile/me", {
         name: profileData.name,
         bio: profileData.bio,
+        linkedinUrl: profileData.linkedinUrl,
         skills,
         interests,
         projects,
@@ -479,6 +482,15 @@ const Profile = () => {
                 </div>
                 {editing && (
                   <div className="mt-3">
+                    <label className="form-label fw-semibold small">LinkedIn Profile URL (optional)</label>
+                    <input
+                      type="url"
+                      name="linkedinUrl"
+                      className="form-control form-control-sm mb-2"
+                      placeholder="https://www.linkedin.com/in/your-profile"
+                      value={profileData.linkedinUrl}
+                      onChange={handleInputChange}
+                    />
                     <label className="form-label fw-semibold small">Banner URL (optional)</label>
                     <input
                       type="url"

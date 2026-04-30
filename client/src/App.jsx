@@ -32,6 +32,8 @@ import ViewProfile from "./pages/ViewProfile";
 import ConnectionRequests from "./pages/ConnectionRequests";
 import JobDetails from "./pages/JobDetails";
 import Onboarding from "./pages/Onboarding";
+import LinkedInCallback from "./pages/LinkedInCallback";
+import Donations from "./pages/Donations";
 
 const App = () => {
   const { user, loading } = useAuth();
@@ -66,6 +68,7 @@ const App = () => {
         <Route path="/onboarding" element={user ? <Onboarding /> : <Navigate to="/login" />} />
         <Route path="/auth/github/callback" element={<GitHubCallback />} />
         <Route path="/auth/google/callback" element={<GoogleCallback />} />
+        <Route path="/auth/linkedin/callback" element={<LinkedInCallback />} />
         <Route path="/complete-profile" element={<CompleteGoogleProfile />} />
         <Route path="/verify-email" element={<VerifyEmail />} />
 
@@ -79,6 +82,7 @@ const App = () => {
         <Route path="/messages" element={protectRoute(<Messages />)} />
         <Route path="/my-applications" element={user?.role === "student" ? protectRoute(<MyApplications />) : <Navigate to="/" />} />
         <Route path="/profile" element={protectRoute(<Profile />)} />
+        <Route path="/donations" element={protectRoute(<Donations />)} />
 
         {/* Alumni Routes */}
         <Route path="/alumni-network" element={user?.role === "alumni" ? protectRoute(<AlumniNetwork />) : <Navigate to="/" />} />

@@ -44,6 +44,7 @@ const UserSchema = new mongoose.Schema(
     verificationTokenExpiry: { type: Date, default: null },
     photoUrl: { type: String, default: "" },
     bannerUrl: { type: String, default: "" },
+    linkedinUrl: { type: String, default: "" },
     bio: { type: String, default: "" },
     onboardingCompleted: { type: Boolean, default: true },
     skills: { type: [String], default: [] },

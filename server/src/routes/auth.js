@@ -771,4 +771,112 @@ router.post("/google/complete-profile", async (req, res) => {
   }
 });
 
+// LinkedIn OAuth Callback - Exchange code for access token and sign in user
+router.post("/linkedin/callback", async (req, res) => {
+  try {
+    const { code } = req.body;
+    if (!code) {
+      return res.status(400).json({ message: "Missing authorization code" });
+    }
+
+    const clientId = process.env.LINKEDIN_CLIENT_ID;
+    const clientSecret = process.env.LINKEDIN_CLIENT_SECRET;
+    const clientUrl = process.env.CLIENT_URL || "http://localhost:5173";
+    const redirectUri = `${clientUrl}/auth/linkedin/callback`;
+
+    if (!clientId || !clientSecret) {
+      return res.status(500).json({ message: "LinkedIn OAuth is not configured on server" });
+    }
+
+    const params = new URLSearchParams();
+    params.append("grant_type", "authorization_code");
+    params.append("code", code);
+    params.append("client_id", clientId);
+    params.append("client_secret", clientSecret);
+    params.append("redirect_uri", redirectUri);
+
+    const tokenRes = await axios.post("https://www.linkedin.com/oauth/v2/accessToken", params, {
+      headers: { "Content-Type": "application/x-www-form-urlencoded" }
+    });
+
+    const accessToken = tokenRes.data?.access_token;
+    if (!accessToken) {
+      return res.status(401).json({ message: "Failed to obtain LinkedIn access token" });
+    }
+
+    const profileRes = await axios.get("https://api.linkedin.com/v2/userinfo", {
+      headers: { Authorization: `Bearer ${accessToken}` }
+    });
+
+    const profile = profileRes.data || {};
+    const email = String(profile.email || "").toLowerCase();
+    const name =
+      profile.name ||
+      [profile.given_name, profile.family_name].filter(Boolean).join(" ").trim() ||
+      "LinkedIn User";
+    const picture = profile.picture || buildDefaultPhotoUrl(name);
+    const linkedinProfileUrl =
+      profile.profile ||
+      (profile.sub ? `https://www.linkedin.com/in/${profile.sub}` : "");
+
+    if (!email) {
+      return res.status(400).json({ message: "Could not retrieve email from LinkedIn profile" });
+    }
+
+    let user = await User.findOne({ email });
+    if (!user) {
+      const passwordHash = await bcrypt.hash(Math.random().toString(36), 10);
+      user = await User.create({
+        name,
+        email,
+        passwordHash,
+        role: "student",
+        approved: true,
+        emailVerified: true,
+        onboardingCompleted: false,
+        photoUrl: picture,
+        linkedinUrl: linkedinProfileUrl,
+        studentProfile: {
+          graduationYear: new Date().getFullYear().toString(),
+          branch: "Not specified",
+          currentYear: "",
+          college: "Government College of Engineering",
+          country: ""
+        }
+      });
+    } else {
+      let shouldSave = false;
+      if (!user.linkedinUrl && linkedinProfileUrl) {
+        user.linkedinUrl = linkedinProfileUrl;
+        shouldSave = true;
+      }
+      if ((!user.photoUrl || user.photoUrl.includes("ui-avatars.com")) && picture) {
+        user.photoUrl = picture;
+        shouldSave = true;
+      }
+      if (shouldSave) {
+        await user.save();
+      }
+    }
+
+    return res.json({
+      token: signToken(user._id),
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        approved: user.approved,
+        onboardingCompleted: user.onboardingCompleted
+      }
+    });
+  } catch (err) {
+    console.error("LinkedIn callback error:", err.response?.data || err.message);
+    return res.status(401).json({
+      message: "LinkedIn authentication failed",
+      error: err.response?.data?.error_description || err.message
+    });
+  }
+});
+
 export default router;

@@ -15,6 +15,8 @@ import postRoutes from "./routes/posts.js";
 import connectionRoutes from "./routes/connections.js";
 import eventRoutes from "./routes/events.js";
 import profileRoutes from "./routes/profile.js";
+import announcementRoutes from "./routes/announcements.js";
+import donationRoutes from "./routes/donations.js";
 import { startJobExpiryCleanup } from "./services/jobExpiryService.js";
 import { errorHandler } from "./middleware/error.js";
 import { initSocketServer } from "./socket.js";
@@ -45,6 +47,8 @@ app.use("/api/admin", adminRoutes);
 app.use("/api/messages", messageRoutes);
 app.use("/api/posts", postRoutes);
 app.use("/api/profile", profileRoutes);
+app.use("/api/announcements", announcementRoutes);
+app.use("/api/donations", donationRoutes);
 
 app.use(errorHandler);
 

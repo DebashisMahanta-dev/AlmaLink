@@ -24,6 +24,7 @@ router.patch("/me", requireAuth, async (req, res) => {
       name,
       photoUrl,
       bannerUrl,
+      linkedinUrl,
       bio,
       skills,
       interests,
@@ -59,6 +60,10 @@ router.patch("/me", requireAuth, async (req, res) => {
 
     if (typeof bannerUrl === "string") {
       user.bannerUrl = bannerUrl.trim();
+    }
+
+    if (typeof linkedinUrl === "string") {
+      user.linkedinUrl = linkedinUrl.trim();
     }
 
     if (typeof onboardingCompleted === "boolean") {

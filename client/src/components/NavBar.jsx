@@ -286,7 +286,8 @@ const NavBar = () => {
         { icon: <Briefcase size={16} />, label: "Jobs", href: "/jobs" },
         { icon: <Calendar size={16} />, label: "Events", href: "/events" },
         { icon: <FileText size={16} />, label: "Applications", href: "/my-applications" },
-        { icon: <Users size={16} />, label: "Mentorship", href: "/connections" }
+        { icon: <Users size={16} />, label: "Mentorship", href: "/connections" },
+        { icon: <FileText size={16} />, label: "Donations", href: "/donations" }
       ],
       dropdownItems: [
         { type: "link", label: "Profile", href: "/profile", icon: User },
@@ -306,7 +307,8 @@ const NavBar = () => {
         { icon: <Users size={16} />, label: "Alumni", href: "/alumni" },
         { icon: <Briefcase size={16} />, label: "Jobs", href: "/my-jobs" },
         { icon: <Calendar size={16} />, label: "Events", href: "/events" },
-        { icon: <Briefcase size={16} />, label: "Mentorship", href: "/alumni-network" }
+        { icon: <Briefcase size={16} />, label: "Mentorship", href: "/alumni-network" },
+        { icon: <FileText size={16} />, label: "Donations", href: "/donations" }
       ],
       dropdownItems: [
         { type: "link", label: "Profile", href: "/profile", icon: User },
@@ -327,7 +329,8 @@ const NavBar = () => {
         { icon: <CheckSquare size={16} />, label: "Approve Alumni", href: "/approve-alumni" },
         { icon: <Briefcase size={16} />, label: "Manage Jobs", href: "/manage-jobs" },
         { icon: <Calendar size={16} />, label: "Manage Events", href: "/manage-events" },
-        { icon: <Bell size={16} />, label: "Announcements", href: "/announcements" }
+        { icon: <Bell size={16} />, label: "Announcements", href: "/announcements" },
+        { icon: <FileText size={16} />, label: "Donations", href: "/donations" }
       ],
       dropdownItems: [
         { type: "link", label: "Admin Profile", href: "/profile", icon: User },
