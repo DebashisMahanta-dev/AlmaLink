@@ -77,6 +77,19 @@ router.post("/register", async (req, res) => {
     }
   }
 
+  if (normalizedRole === "student") {
+    if (!normalizedGraduationYear || !normalizedBranch) {
+      return res.status(400).json({ message: "Pass out year and branch are required for student signup" });
+    }
+    if (!/^\d{4}$/.test(normalizedGraduationYear)) {
+      return res.status(400).json({ message: "Pass out year must be a 4-digit year" });
+    }
+    const passOutYear = Number(normalizedGraduationYear);
+    if (passOutYear < currentYear || passOutYear > currentYear + 8) {
+      return res.status(400).json({ message: "Pass out year is out of valid range for student signup" });
+    }
+  }
+
   const passwordHash = await bcrypt.hash(password, 10);
   const normalizedEmail = email.toLowerCase();
   const existing = await User.findOne({ email: normalizedEmail });
@@ -105,8 +118,8 @@ router.post("/register", async (req, res) => {
         studentProfile:
           normalizedRole === "student"
             ? {
-                graduationYear: "",
-                branch: "",
+                graduationYear: normalizedGraduationYear,
+                branch: normalizedBranch,
                 currentYear: "",
                 college: "Government College of Engineering",
                 country: ""
@@ -144,8 +157,8 @@ router.post("/register", async (req, res) => {
       user.studentProfile = undefined;
     } else {
       user.studentProfile = {
-        graduationYear: "",
-        branch: "",
+        graduationYear: normalizedGraduationYear,
+        branch: normalizedBranch,
         currentYear: "",
         college: "Government College of Engineering",
         country: ""

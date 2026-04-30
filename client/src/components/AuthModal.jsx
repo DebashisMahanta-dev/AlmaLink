@@ -306,7 +306,7 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
               <option value="alumni">Alumni</option>
             </select>
 
-            {registerForm.role === "alumni" && (
+            {(registerForm.role === "alumni" || registerForm.role === "student") && (
               <>
                 <input
                   type="text"
@@ -331,6 +331,11 @@ const AuthModal = ({ isOpen, initialMode = "login", onClose }) => {
                   onChange={(event) => setRegisterForm((prev) => ({ ...prev, branch: event.target.value }))}
                   required
                 />
+              </>
+            )}
+
+            {registerForm.role === "alumni" && (
+              <>
                 <input
                   type="text"
                   className="auth-modal-input"
