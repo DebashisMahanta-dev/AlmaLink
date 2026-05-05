@@ -1,12 +1,17 @@
-import nodemailer from "nodemailer";
-
-const RESEND_API_URL = "https://api.resend.com/emails";
+const GRAPH_SCOPE = "https://graph.microsoft.com/.default";
 
 const getEmailConfig = () => ({
-  fromAddress: process.env.RESEND_FROM || process.env.EMAIL_FROM || "AlmaLink <noreply@almalink.com>",
-  resendApiKey: process.env.RESEND_API_KEY || "",
+  tenantId: String(process.env.TENANT_ID || "").trim(),
+  clientId: String(process.env.CLIENT_ID || "").trim(),
+  clientSecret: String(process.env.CLIENT_SECRET || "").trim(),
+  mailbox: String(process.env.MAILBOX || "").trim(),
   forcedRecipient: String(process.env.TEST_EMAIL_REDIRECT_TO || "").trim()
 });
+
+let graphTokenCache = {
+  accessToken: "",
+  expiresAt: 0
+};
 
 const htmlWrapper = (title, body) => `
   <div style="font-family: Arial, sans-serif; background: #f6f9fc; padding: 24px;">
@@ -65,29 +70,85 @@ const applyTestRecipientRedirect = ({ to, subject, html, text }) => {
   };
 };
 
-const sendViaResend = async ({ to, subject, html, text, bcc }) => {
-  const { resendApiKey, fromAddress } = getEmailConfig();
-  if (!resendApiKey) {
+const toGraphRecipients = (recipients) =>
+  normalizeRecipients(recipients).map((address) => ({
+    emailAddress: { address }
+  }));
+
+const getGraphAccessToken = async ({ tenantId, clientId, clientSecret }) => {
+  const now = Date.now();
+  if (graphTokenCache.accessToken && graphTokenCache.expiresAt - 60_000 > now) {
+    return graphTokenCache.accessToken;
+  }
+
+  const tokenUrl = `https://login.microsoftonline.com/${tenantId}/oauth2/v2.0/token`;
+  const params = new URLSearchParams();
+  params.append("client_id", clientId);
+  params.append("client_secret", clientSecret);
+  params.append("scope", GRAPH_SCOPE);
+  params.append("grant_type", "client_credentials");
+
+  const response = await fetch(tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded"
+    },
+    body: params
+  });
+
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error(`Microsoft Graph token request failed (${response.status}): ${details}`);
+  }
+
+  const data = await response.json();
+  if (!data.access_token) {
+    throw new Error("Microsoft Graph token response did not include an access token");
+  }
+
+  graphTokenCache = {
+    accessToken: data.access_token,
+    expiresAt: now + Number(data.expires_in || 3599) * 1000
+  };
+
+  return graphTokenCache.accessToken;
+};
+
+const sendViaMicrosoftGraph = async ({ to, subject, html, text, bcc }) => {
+  const config = getEmailConfig();
+  const { tenantId, clientId, clientSecret, mailbox } = config;
+  if (!tenantId || !clientId || !clientSecret || !mailbox) {
     return false;
   }
 
   const outgoing = applyTestRecipientRedirect({ to, subject, html, text });
+  const toRecipients = toGraphRecipients(outgoing.to);
+  if (!toRecipients.length) {
+    throw new Error("No recipients provided for email");
+  }
+
+  const accessToken = await getGraphAccessToken(config);
   const payload = {
-    from: fromAddress,
-    to: outgoing.to,
-    subject: outgoing.subject,
-    html: outgoing.html,
-    text: outgoing.text
+    message: {
+      subject: outgoing.subject,
+      body: {
+        contentType: outgoing.html ? "HTML" : "Text",
+        content: outgoing.html || outgoing.text || ""
+      },
+      toRecipients
+    },
+    saveToSentItems: true
   };
 
   if (bcc?.length) {
-    payload.bcc = bcc;
+    payload.message.bccRecipients = toGraphRecipients(bcc);
   }
 
-  const response = await fetch(RESEND_API_URL, {
+  const sendUrl = `https://graph.microsoft.com/v1.0/users/${encodeURIComponent(mailbox)}/sendMail`;
+  const response = await fetch(sendUrl, {
     method: "POST",
     headers: {
-      Authorization: `Bearer ${resendApiKey}`,
+      Authorization: `Bearer ${accessToken}`,
       "Content-Type": "application/json"
     },
     body: JSON.stringify(payload)
@@ -95,52 +156,16 @@ const sendViaResend = async ({ to, subject, html, text, bcc }) => {
 
   if (!response.ok) {
     const details = await response.text();
-    throw new Error(`Resend request failed (${response.status}): ${details}`);
+    throw new Error(`Microsoft Graph sendMail request failed (${response.status}): ${details}`);
   }
-
-  return true;
-};
-
-const sendFallbackEmail = async ({ to, subject, html, text, bcc }) => {
-  if (!process.env.SMTP_USER && !process.env.SMTP_PASS) {
-    return false;
-  }
-
-  const { fromAddress } = getEmailConfig();
-  const fallbackTransporter = nodemailer.createTransport({
-    host: process.env.SMTP_HOST || "smtp.gmail.com",
-    port: process.env.SMTP_PORT || 587,
-    secure: process.env.SMTP_SECURE === "true",
-    auth: process.env.SMTP_USER
-      ? {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS || ""
-        }
-      : undefined
-  });
-
-  const outgoing = applyTestRecipientRedirect({ to, subject, html, text });
-  await fallbackTransporter.sendMail({
-    from: process.env.SMTP_FROM || process.env.SMTP_USER || fromAddress,
-    to: outgoing.to,
-    bcc: bcc?.length ? bcc.join(", ") : undefined,
-    subject: outgoing.subject,
-    html: outgoing.html,
-    text: outgoing.text
-  });
 
   return true;
 };
 
 export const sendEmail = async ({ to, subject, html, text, bcc }) => {
   try {
-    const sentViaResend = await sendViaResend({ to, subject, html, text, bcc });
-    if (sentViaResend) {
-      return true;
-    }
-
-    const sentViaFallback = await sendFallbackEmail({ to, subject, html, text, bcc });
-    if (sentViaFallback) {
+    const sentViaGraph = await sendViaMicrosoftGraph({ to, subject, html, text, bcc });
+    if (sentViaGraph) {
       return true;
     }
 

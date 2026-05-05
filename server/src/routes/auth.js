@@ -255,7 +255,7 @@ router.post("/verify-email", async (req, res) => {
   return res.status(400).json({ message: "Use OTP-based verification endpoint instead." });
 });
 
-// Resend Verification Email with OTP
+// Send a fresh verification email with OTP
 router.post("/resend-verification", async (req, res) => {
   const { email } = req.body;
   if (!email || !isValidEmail(email)) {
